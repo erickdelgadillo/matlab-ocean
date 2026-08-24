@@ -1,5 +1,9 @@
 # Keep GitHub language statistics focused on the project's own MATLAB code.
 third_party/** linguist-vendored
 
+# Force GitHub Linguist to classify MATLAB source and Live Scripts correctly.
+*.m linguist-language=MATLAB
+*.mlx linguist-language=MATLAB
+
 # MATLAB Live Scripts are binary ZIP-based documents.
 *.mlx binary
