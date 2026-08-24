@@ -18,3 +18,19 @@ codegen/
 # Local preferences and temporary files
 *.prj
 *.autosave
+.Rhistory
+.DS_Store
+
+# Original working directory retained locally for provenance and recovery
+local_archive/
+
+# Research inputs and generated outputs are not published from this repository
+data/raw/
+data/intermediate/
+results/
+*.xlsx
+*.xls
+*.csv
+
+# Keep documentation that explains how to obtain or reconstruct the data
+!data/README.md
