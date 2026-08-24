@@ -1,0 +1,5 @@
+# Keep GitHub language statistics focused on the project's own MATLAB code.
+third_party/** linguist-vendored
+
+# MATLAB Live Scripts are binary ZIP-based documents.
+*.mlx binary
