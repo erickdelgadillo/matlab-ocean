@@ -1,0 +1,20 @@
+# MATLAB autosave and backup files
+*.asv
+*.m~
+
+# Generated MEX binaries
+*.mex*
+
+# MATLAB and Simulink generated directories
+slprj/
+sccprj/
+codegen/
+
+# Simulink generated files
+*.slxc
+*.mdl.r*
+*.slx.r*
+
+# Local preferences and temporary files
+*.prj
+*.autosave
