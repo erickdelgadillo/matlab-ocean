@@ -5,6 +5,12 @@ third_party/** linguist-vendored
 *.m linguist-language=MATLAB
 *.mlx linguist-language=MATLAB
 
+# R Markdown notebooks contain the publication R analysis.
+*.Rmd linguist-language=R
+
+# Preserve intentional trailing spaces in historical scientific CSV fields.
+r_analysis/Calculations/*.csv -whitespace
+
 # MATLAB Live Scripts are binary ZIP-based documents.
 *.mlx binary
 

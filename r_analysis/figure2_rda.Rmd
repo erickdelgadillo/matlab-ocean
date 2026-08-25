@@ -1,0 +1,305 @@
+This notebook contains the final RDA panels used for Figure 2. Run it after
+`publication_figures.Rmd` in the same R session because it reuses the imported
+tables and objects created there.
+
+```{r setup, include=FALSE}
+dir.create("./Results/Figures", recursive = TRUE, showWarnings = FALSE)
+```
+
+
+```{r, cache = TRUE}
+ENV_field_nmaped_matrix <- ENV_field %>%
+   dplyr::select(sample, sequence, n_mapped) %>%
+    mutate(n_mapped = n_mapped + 1 ) %>%
+  spread(sequence, n_mapped, fill = 1)
+```
+
+
+```{r, cache = TRUE}
+ENV_field_nmaped_matrix_RenameSample <- ENV_field_nmaped_matrix %>%
+    separate(sample, c("cruise", "day", "station", "reseq"), sep="_", remove=T) %>%
+    unite(sample2, cruise, day, station, sep="_", remove=T) %>%
+    dplyr::select (-reseq) %>%
+    dplyr::rename (sample=sample2)
+# ENV_field_codaseq_clr_MATRIX <- readRDS("ENV_field_codaseq_clr_MATRIX.rds")
+```
+
+
+```{r, cache = TRUE}
+ENV_field_codaseq_clr_MATRIX <- ENV_field_nmaped_matrix_RenameSample %>%
+  column_to_rownames('sample') %>%
+  codaSeq.clr(samples.by.row = FALSE) %>% #calculate clr
+  data.frame()
+# saveRDS(ENV_field_codaseq_clr_MATRIX, file = "ENV_field_c odaseq_clr.rds")
+```
+
+
+```{r Import Files (general_metabolism_best_ranked_above_ga.maxmin100.tsv), include=FALSE}
+# ENV_field_codaseq_clr_matrix <- ENV_field_codaseq_clr %>%
+#     data.frame() %>%
+#     tibble::column_to_rownames('sample') %>%
+#   dplyr::select(1:1611755)
+
+```
+
+```{r, cache = TRUE}
+All_Pf_and_ENVmetadata_rda <- rda(ENV_field_codaseq_clr_MATRIX, Metadata_log)
+
+#Hacemos una anova para saber cual de esas variables son significativas en funcion de nuestros datos
+anova(All_Pf_and_ENVmetadata_rda) ### overall test of the significant of the analysis
+anova(All_Pf_and_ENVmetadata_rda,by="terms",permutations = 999) #test for sign. environ. variables
+```
+
+
+```{r, cache = TRUE}
+#Las variables significativas en este anÃ¡lisis son
+dist_clbac<- vegdist(ENV_field_codaseq_clr_MATRIX, method="euclidean")
+adonis(dist_clbac~., Metadata_log, method = "euclidean", by="terms")#PERmanova
+```
+
+
+```{r, cache = TRUE}
+###Graficamos las variables significativas
+All_Pf_and_ENVmetadata_rda_sig <- rda (ENV_field_codaseq_clr_MATRIX ~ # select the significant variables
+                                        NO3+NH4+PO4+SiO2+Chlorophyll_a+Prokaryotic_abundance, Metadata_log)
+```
+
+
+```{r, cache = TRUE}
+
+RDA_All_sequences_env <- ggord(All_Pf_and_ENVmetadata_rda_sig, env_flags_myrda$season_station,
+      col = c("royalblue", # winter/coast
+              "royalblue4", # winter/offshore
+              "orangered", # spring/coast
+              "orangered4", # spring/offshore
+              "seagreen1", # summer/coast
+              "seagreen4"), # summer/offshore
+        labcol = 'black', # color of the labels
+        veccol = 'snow4', # color of the vectors
+        arrow = 0.5, # size of the vectors
+        vec_ext = 0.5, # extension of the vectors......
+        veclsz = 0.5, # size of the arrows
+        vectyp = 'solid', # solid, dashed or dotted fo the arrow shape
+        repel = T, # command to repel labels
+        facet = F, nfac = 3, # facet command to separate the groups
+        coord_fix = F, # ??
+        grp_title = "Seasons") + # Name of the groups legend
+  theme_bw() +
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0))+
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=16)) + # , face = "bold"
+  theme(axis.text.y = element_text(angle = 0, vjust = 1, hjust = 1, size=16)) + # , face = "bold"
+  theme(axis.title.x = element_text(size=16))+ # , face = "bold"
+  theme(axis.title.y = element_text(size=16))+ # , face = "bold"
+        scale_color_manual(values = c( "royalblue", # winter/coast
+                                "royalblue2",  # winter/offshore
+                                "orangered", # spring/coast
+                                "orangered2", # spring/offshore
+                                "seagreen1",  # summer/coast
+                                "seagreen2")) + # summer/offshore
+        scale_shape_manual(values = c(19, 17, 19, 17, 19, 17)) + # coast=19, offshore=17
+      xlim(c(-0.6,0.65)) +
+      ylim(c(-1.2,0.50)) +
+  labs(x = "RDA1 (43.32%)",
+       y = "RDA2 (21.7%)") +
+    theme(legend.direction = 'vertical', legend.position = 'none') + # Use "none" if you want to remove the legend
+    # theme(legend.direction = 'horizontal', legend.position = 'bottom') + # "alternative legend position
+    # labs( color="", size="", shape="") + #
+  ggtitle("(B)")
+RDA_All_sequences_env
+
+
+ggsave("./Results/Figures/Figura_2A_RDA_AllProfiles_environmental.png",
+       width = 17, # anchura
+       height =8, # altura
+       units = "cm",
+       dpi = 300)
+```
+
+
+```{r, cache = TRUE}
+Euk_ASVs_long <- pivot_longer(Euk_ASVs, cols=2:18, names_to = "order", values_to = "ASV")
+
+Euk_ASVs_clr <- Euk_ASVs_long %>%
+  # mutate(ASV = ASV + 1 ) %>%
+  spread(order, ASV, fill = 0.5) %>%
+  column_to_rownames('sample')%>%
+  codaSeq.clr(samples.by.row = FALSE) %>% #calculate clr
+  data.frame()
+
+
+
+Bac_ASVs_long <- pivot_longer(Bac_ASVs, cols=2:16, names_to = "order", values_to = "ASV")
+
+Bac_ASVs_clr<- Bac_ASVs_long %>%
+  # mutate(ASV = ASV + 1 ) %>%
+  spread(order, ASV, fill = 0.5) %>%
+  column_to_rownames('sample')%>%
+  codaSeq.clr(samples.by.row = FALSE) %>% #calculate clr
+  data.frame()
+```
+
+
+
+```{r, cache = TRUE}
+All_Pf_and_EukASVs_rda <- rda(ENV_field_codaseq_clr_MATRIX, Euk_ASVs_clr)
+
+##Hacemos una anova para saber cual de esas variables son significativas en funcion de nuestros datos
+anova(All_Pf_and_EukASVs_rda) ### overall test of the significant of the analysis
+anova(All_Pf_and_EukASVs_rda, by="terms",permutations = 999) #test for sign. environ. variables
+```
+
+
+```{r, cache = TRUE}
+#Las variables significativas en este anÃ¡lisis son
+dist_clbac<- vegdist(ENV_field_codaseq_clr_MATRIX, method="euclidean")
+adonis(dist_clbac ~., Euk_ASVs_clr, method = "euclidean", by="terms")#PERmanova
+```
+
+
+```{r, cache = TRUE}
+###Graficamos las variables significativas
+All_Pf_and_EukASVs_rda_sig <-rda(ENV_field_codaseq_clr_MATRIX ~ # select the significant variables
+                                   Chaetoceros+
+                                   Ciliophora+
+                                   Cryptophyceae+
+                                   Dictyochophyceae+
+                                   Dinophyceae+
+                                   Fungi, Euk_ASVs_clr)
+
+```
+
+
+```{r}
+RDA_All_sequences_OTUs <- ggord(All_Pf_and_EukASVs_rda_sig, env_flags_myrda$season_station,
+      col = c("royalblue", # winter/coast
+              "royalblue4", # winter/offshore
+              "orangered", # spring/coast
+              "orangered4", # spring/offshore
+              "seagreen1", # summer/coast
+              "seagreen4"), # summer/offshore
+        labcol = 'black', # color of the labels
+        veccol = 'snow4', # color of the vectors
+        arrow = 0.5, # size of the vectors
+        vec_ext = 0.5, # extension of the vectors......
+        veclsz = 0.5, # size of the arrows
+        vectyp = 'solid', # solid, dashed or dotted fo the arrow shape
+        repel = TRUE, # command to repel labels
+        facet = F, nfac = 3, # facet command to separate the groups
+        coord_fix = F, # ??
+        grp_title = "Seasons") + # Name of the groups legend
+  theme_bw() +
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0))+
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=14)) + # , face = "bold"
+  theme(axis.text.y = element_text(angle = 0, vjust = 1, hjust = 1, size=14)) + # , face = "bold"
+  theme(axis.title.x = element_text(size=14))+ # , face = "bold"
+  theme(axis.title.y = element_text(size=14))+ # , face = "bold"
+        scale_color_manual(values = c( "royalblue", # winter/coast
+                                "royalblue2",  # winter/offshore
+                                "orangered", # spring/coast
+                                "orangered2", # spring/offshore
+                                "seagreen1",  # summer/coast
+                                "seagreen2")) + # summer/offshore
+        scale_shape_manual(values = c(19, 17, 19, 17, 19, 17)) + # coast=19, offshore=17
+        xlim(c(-0.6,0.65)) +
+      ylim(c(-1.2,0.50)) +
+  labs(x = "RDA1 (44.74%)",
+       y = "RDA2 (20.45%)") +
+    theme(legend.direction = 'horizontal', legend.position = 'none') + # Use "none" if you want to remove the legend
+    # theme(legend.direction = 'horizontal', legend.position = 'bottom') + # "alternative legend position
+    # labs( color="", size="", shape="") + #
+  ggtitle("(C)")
+RDA_All_sequences_OTUs
+
+
+ggsave("./Results/Figures/Figura_2B_RDA_AllProfiles_EukASV.png",
+       width = 17, # anchura
+       height =8, # altura
+       units = "cm",
+       dpi = 300)
+```
+
+
+```{r, cache = TRUE}
+All_Pf_and_ProkASVs_rda <- rda(ENV_field_codaseq_clr_MATRIX, Bac_ASVs_clr)
+```
+
+
+```{r, cache = TRUE}
+##Hacemos una anova para saber cual de esas variables son significativas en funcion de nuestros datos
+anova(All_Pf_and_ProkASVs_rda) ### overall test of the significant of the analysis
+anova(All_Pf_and_ENVmetadata_rda,by="terms",permutations = 999) #test for sign. environ. variables
+```
+
+```{r, cache = TRUE}
+#Las variables significativas en este anÃ¡lisis son
+dist_clbac<- vegdist(ENV_field_codaseq_clr_MATRIX, method="euclidean")
+adonis(dist_clbac~., Bac_ASVs_clr, method = "euclidean", by="terms") # PERmanova
+```
+
+
+```{r, cache = TRUE}
+###Graficamos las variables significativas
+All_Pf_and_ProkOTUs_rda_sig <-rda(ENV_field_codaseq_clr_MATRIX ~
+                    Amylibacter+
+                    Cellvibrionales+
+                    Oceanospirillales+
+                    Euryarchaeota+
+                    Flavobacteriales+
+                    Other_Alphaproteobacteria+
+                    Pelagibacterales+
+                    Rhodobacterales,
+                  Bac_ASVs_clr)
+```
+
+
+```{r}
+# env_flags_myrda <- read.csv("env_flags.csv") %>%
+#   tibble::column_to_rownames('sample')
+
+RDA_All_sequences_OTUs <- ggord(All_Pf_and_ProkOTUs_rda_sig, env_flags_myrda$season_station,
+      col = c("royalblue", # winter/coast
+              "royalblue4", # winter/offshore
+              "orangered", # spring/coast
+              "orangered4", # spring/offshore
+              "seagreen1", # summer/coast
+              "seagreen4"), # summer/offshore
+        labcol = 'black', # color of the labels
+        veccol = 'snow4', # color of the vectors
+        arrow = 0.5, # size of the vectors
+        vec_ext = 0.5, # extension of the vectors......
+        veclsz = 0.5, # size of the arrows
+        vectyp = 'solid', # solid, dashed or dotted fo the arrow shape
+        repel = TRUE, # command to repel labels
+        facet = F, nfac = 3, # facet command to separate the groups
+        coord_fix = F, # ??
+        grp_title = "Seasons") + # Name of the groups legend
+  theme_bw() +
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0))+
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=14)) + # , face = "bold"
+  theme(axis.text.y = element_text(angle = 0, vjust = 1, hjust = 1, size=14)) + # , face = "bold"
+  theme(axis.title.x = element_text(size=14))+ # , face = "bold"
+  theme(axis.title.y = element_text(size=14))+ # , face = "bold"
+        scale_color_manual(values = c( "royalblue", # winter/coast
+                                "royalblue2",  # winter/offshore
+                                "orangered", # spring/coast
+                                "orangered2", # spring/offshore
+                                "seagreen1",  # summer/coast
+                                "seagreen2")) + # summer/offshore
+        scale_shape_manual(values = c(19, 17, 19, 17, 19, 17)) + # coast=19, offshore=17
+        xlim(c(-0.6,0.65)) +
+      ylim(c(-1.2,0.50)) +
+  labs(x = "RDA1 (41.03%)",
+       y = "RDA2 (21%)") +
+    theme(legend.direction = 'vertical', legend.position = 'none') + # Use "none" if you want to remove the legend
+    # theme(legend.direction = 'horizontal', legend.position = 'bottom') + # "alternative legend position
+    # labs( color="", size="", shape="") + #
+  ggtitle("(D)")
+RDA_All_sequences_OTUs
+
+
+ggsave("./Results/Figures/Figura_2C_RDA_AllProfiles_ProkASV.png",
+       width = 17, # anchura
+       height =8, # altura
+       units = "cm",
+       dpi = 300)
+```

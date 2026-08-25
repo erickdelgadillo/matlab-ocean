@@ -1,8 +1,9 @@
 # MATLAB Ocean
 
-MATLAB code and oceanographic inputs used to generate environmental profile
-panels associated with **“Coastal upwelling systems as dynamic mosaics of
-bacterioplankton functional specialization.”**
+Curated MATLAB and R code used to generate oceanographic profiles, main
+figures, supplementary figures, and correction analyses associated with
+**“Coastal upwelling systems as dynamic mosaics of bacterioplankton functional
+specialization.”**
 
 ## Associated publications
 
@@ -33,6 +34,22 @@ available in [`live_scripts/temporal/README.md`](live_scripts/temporal/README.md
 Files outside this table are retained as historical or exploratory material and
 are not claimed to reproduce figures from the article.
 
+## Published R workflow
+
+The final R materials were also traced through the historical ENVISION
+directory. Three notebooks are retained:
+
+| Notebook | Scope |
+| --- | --- |
+| `publication_figures.Rmd` | Revised main workflow for environmental, community, transcriptomic, gene-abundance, ratio, and supplementary plots |
+| `figure2_rda.Rmd` | Final RDA panels B–D for Figure 2 |
+| `correction_2026.Rmd` | Corrected phosphorus and `pstS` ratio analysis from 2026 |
+
+The notebooks and their 19 compact CSV inputs are under [`r_analysis/`](r_analysis/README.md).
+Large processed objects and one unrecovered source table remain external and
+are documented there, so the R workflow is published transparently without
+claiming complete end-to-end reproducibility yet.
+
 ## Running the published workflow
 
 Start MATLAB in the repository root and prepare the historical dependency path:
@@ -57,6 +74,7 @@ matlab-ocean/
 ├── scripts/
 │   ├── figures/          # Other historical figure scripts
 │   └── exploratory/      # Exploratory analyses
+├── r_analysis/           # Selected publication R notebooks and compact inputs
 ├── third_party/          # External MATLAB utilities and notices
 ├── data/                 # Data provenance documentation
 └── README.md
@@ -65,8 +83,9 @@ matlab-ocean/
 ## Data availability
 
 The four compact oceanographic workbooks required by the published MATLAB
-workflow are included. Other raw spreadsheets, intermediate tables, generated
-figures, and the full historical working directory remain excluded from Git.
+workflow and the 19 compact CSV inputs used by the selected R notebooks are
+included. Large processed objects, other raw tables, generated figures, and
+the full historical working directory remain excluded from Git.
 
 The sequence data cited by the article are available from the European
 Nucleotide Archive under:
@@ -79,10 +98,16 @@ See [`data/README.md`](data/README.md) for provenance and scope notes.
 
 ## Requirements and validation status
 
-The published live scripts use `xlsread`, `gridfit`, and `exportgraphics`.
-`gridfit` is retained under `third_party/` with its original attribution.
+The published MATLAB live scripts use `xlsread`, `gridfit`, and
+`exportgraphics`. `gridfit` is retained under `third_party/` with its original
+attribution. The R package requirements are listed in
+[`r_analysis/README.md`](r_analysis/README.md) and in the setup chunk of the
+main notebook.
 
 The selected live scripts match the historical files byte for byte, their input
 schemas were inspected, and their output names and panel contents were matched
 to the final supplementary figures. End-to-end execution has not yet been
 repeated because MATLAB is not installed in the current curation environment.
+The selected R notebooks have been syntax-checked and the 2026 correction
+notebook has been rerun successfully. A complete rerun of the main R workflow
+still awaits recovery or external publication of three documented data inputs.
