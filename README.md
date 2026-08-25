@@ -1,8 +1,9 @@
 # MATLAB Ocean
 
-MATLAB code used for oceanographic exploration and visualization associated
-with the study **“Coastal upwelling systems as dynamic mosaics of
-bacterioplankton functional specialization.”**
+Curated MATLAB and R code used to generate oceanographic profiles, main
+figures, supplementary figures, and correction analyses associated with
+**“Coastal upwelling systems as dynamic mosaics of bacterioplankton functional
+specialization.”**
 
 ## Associated publications
 
@@ -11,33 +12,80 @@ bacterioplankton functional specialization.”**
 - Correction: Delgadillo-Nuño et al. (2026), *Frontiers in Marine Science*,
   <https://doi.org/10.3389/fmars.2026.1886620>
 
-The correction updates nitrate and phosphate values used in Figure 1 and
-phosphate-related analyses in Figure 5 and supplementary figures. The curated
-script `scripts/figures/figure1_corrected.m` is therefore the appropriate
-starting point for the corrected Figure 1 workflow.
+The 2026 correction notice replaces Supplementary Figures 3 and 5. The MATLAB
+workflows documented here correspond to Supplementary Figures 1 and 2 and are
+not identified as affected by that correction.
+
+## Published MATLAB workflow
+
+The final article material was compared with the historical ENVISION working
+directory to identify the scripts that generated the published CTD and nutrient
+profile panels.
+
+| Published figure | Content | Live scripts | Input workbooks |
+| --- | --- | --- | --- |
+| Supplementary Figure 1 | Temperature, PAR, chlorophyll-a, salinity, and turbidity profiles | `station3_ctd.mlx`, `station6_ctd.mlx` | `S3_CTD.xlsx`, `S6_CTD.xlsx` |
+| Supplementary Figure 2 | Ammonium, nitrite, nitrate, silicate, and phosphate profiles | `station3_nutrients.mlx`, `station6_nutrients.mlx` | `S3_Metadata.xlsx`, `S6_Metadata.xlsx` |
+
+Station 3 is the offshore station and Station 6 is the coastal station. The
+four input workbooks are kept next to the live scripts because the historical
+code reads them by relative filename. Checksums and a more detailed mapping are
+available in [`live_scripts/temporal/README.md`](live_scripts/temporal/README.md).
+Files outside this table are retained as historical or exploratory material and
+are not claimed to reproduce figures from the article.
+
+## Published R workflow
+
+The final R materials were also traced through the historical ENVISION
+directory. Three notebooks are retained:
+
+| Notebook | Scope |
+| --- | --- |
+| `publication_figures.Rmd` | Revised main workflow for environmental, community, transcriptomic, gene-abundance, ratio, and supplementary plots |
+| `figure2_rda.Rmd` | Final RDA panels B–D for Figure 2 |
+| `correction_2026.Rmd` | Corrected phosphorus and `pstS` ratio analysis from 2026 |
+
+The notebooks and their 19 compact CSV inputs are under [`r_analysis/`](r_analysis/README.md).
+Large processed objects and one unrecovered source table remain external and
+are documented there, so the R workflow is published transparently without
+claiming complete end-to-end reproducibility yet.
+
+## Running the published workflow
+
+Start MATLAB in the repository root and prepare the historical dependency path:
+
+```matlab
+repoRoot = pwd;
+addpath(fullfile(repoRoot, 'third_party'));
+cd(fullfile(repoRoot, 'live_scripts', 'temporal'));
+```
+
+Open and run the four live scripts listed above. They read the included Excel
+workbooks and export the individual panels as 300 dpi PNG files. Generated PNG
+files are intentionally ignored by Git.
 
 ## Repository structure
 
 ```text
 matlab-ocean/
-├── scripts/
-│   ├── figures/          # MATLAB scripts associated with paper figures
-│   └── exploratory/      # Exploratory analysis scripts
 ├── live_scripts/
-│   ├── longitudinal/     # ENV1–ENV3 depth/transect analyses
-│   └── temporal/         # Station and seasonal analyses
-├── third_party/          # External MATLAB utilities and their notices
-├── data/
-│   └── README.md         # Data provenance and expected local inputs
+│   ├── temporal/         # Published temporal profiles and exact inputs
+│   └── longitudinal/     # Additional ENV1–ENV3 transect analyses
+├── scripts/
+│   ├── figures/          # Other historical figure scripts
+│   └── exploratory/      # Exploratory analyses
+├── r_analysis/           # Selected publication R notebooks and compact inputs
+├── third_party/          # External MATLAB utilities and notices
+├── data/                 # Data provenance documentation
 └── README.md
 ```
 
-Raw spreadsheets, intermediate tables, generated figures, and the original
-working directory are retained locally but excluded from Git. This keeps the
-repository focused on code while avoiding accidental redistribution of files
-whose publication status has not been independently established.
-
 ## Data availability
+
+The four compact oceanographic workbooks required by the published MATLAB
+workflow and the 19 compact CSV inputs used by the selected R notebooks are
+included. Large processed objects, other raw tables, generated figures, and
+the full historical working directory remain excluded from Git.
 
 The sequence data cited by the article are available from the European
 Nucleotide Archive under:
@@ -46,17 +94,20 @@ Nucleotide Archive under:
 - `PRJEB36099` — 18S rRNA gene sequences
 - `PRJEB36728` (`ERS5513557`–`ERS5513582`) — metatranscriptomes
 
-See [`data/README.md`](data/README.md) for the local tabular inputs expected by
-the historical MATLAB workflows.
+See [`data/README.md`](data/README.md) for provenance and scope notes.
 
-## MATLAB requirements
+## Requirements and validation status
 
-The exact MATLAB release and toolbox requirements still need to be verified.
-Several workflows depend on the external `brewermap` and `gridfit` utilities,
-which are retained once under `third_party/` with their original notices.
+The published MATLAB live scripts use `xlsread`, `gridfit`, and
+`exportgraphics`. `gridfit` is retained under `third_party/` with its original
+attribution. The R package requirements are listed in
+[`r_analysis/README.md`](r_analysis/README.md) and in the setup chunk of the
+main notebook.
 
-## Status
-
-This repository is a curated reconstruction of historical analysis material.
-The scripts have been organized and deduplicated, but end-to-end reproduction
-against the corrected publication figures has not yet been validated.
+The selected live scripts match the historical files byte for byte, their input
+schemas were inspected, and their output names and panel contents were matched
+to the final supplementary figures. End-to-end execution has not yet been
+repeated because MATLAB is not installed in the current curation environment.
+The selected R notebooks have been syntax-checked and the 2026 correction
+notebook has been rerun successfully. A complete rerun of the main R workflow
+still awaits recovery or external publication of three documented data inputs.
