@@ -25,17 +25,17 @@ the selected notebooks. These include CTD and environmental metadata, sample
 labels, ASV summaries, taxonomic labels, protein-profile annotations, plotting
 helpers, and the corrected 2026 phosphorus table.
 
-Three inputs required by the full main workflow are not committed:
+Three large inputs required by the full main workflow are not committed:
 
 - `ENV_field_generalmetabolism_tax.rds` (about 132 MB)
 - `envision_general_metabolism_june2022.feather` (about 998 MB)
-- `uc099_debris.archaea_bacteria.count_tpm_clr_(2022).tsv` (not found in the
-  archived ENVISION directories)
+- `uc099_debris.archaea_bacteria.count_tpm_clr_(2022).tsv` (about 9.19 GB)
 
-The first two exceed the sensible scope of a normal Git repository; the third
-must be recovered or reconstructed. They should eventually be deposited in a
-research-data archive or documented external storage rather than committed to
-Git history.
+All three are available in the local, Git-ignored historical workspace under
+`../local_archive/ENVISION/Calculations/`. They exceed the sensible scope of a
+normal Git repository and should eventually be deposited in a research-data
+archive or documented external storage rather than committed to Git history.
+A fresh GitHub clone does not include them.
 
 ## Running the notebooks
 
@@ -64,7 +64,7 @@ The three selected notebooks have valid R syntax after extracting their code
 chunks, all committed CSV inputs are readable, and active paths no longer
 point to a personal Windows directory. The correction notebook was executed
 successfully with R 4.3.3 and generated both expected PNG files; it emitted
-only non-fatal warnings from newer plotting-package versions. A complete
-end-to-end rerun of the main workflow is not yet possible because the three
-inputs listed above are unavailable from this repository and the historical R
-environment has not yet been frozen.
+only non-fatal warnings from newer plotting-package versions. The restored
+historical main workflow completed end to end using the local archive, and its
+RDA workflow completed a functional validation with nine permutations. The
+production RDA default remains 999 and is substantially more expensive.

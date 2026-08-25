@@ -46,9 +46,9 @@ directory. Three notebooks are retained:
 | `correction_2026.Rmd` | Corrected phosphorus and `pstS` ratio analysis from 2026 |
 
 The notebooks and their 19 compact CSV inputs are under [`r_analysis/`](r_analysis/README.md).
-Large processed objects and one unrecovered source table remain external and
-are documented there, so the R workflow is published transparently without
-claiming complete end-to-end reproducibility yet.
+Large processed objects remain excluded from Git and are documented there. A
+complete local copy of the recovered ENVISION workspace is kept under the
+ignored `local_archive/ENVISION/` directory.
 
 ## Running the published workflow
 
@@ -108,6 +108,7 @@ The selected live scripts match the historical files byte for byte, their input
 schemas were inspected, and their output names and panel contents were matched
 to the final supplementary figures. End-to-end execution has not yet been
 repeated because MATLAB is not installed in the current curation environment.
-The selected R notebooks have been syntax-checked and the 2026 correction
-notebook has been rerun successfully. A complete rerun of the main R workflow
-still awaits recovery or external publication of three documented data inputs.
+The selected R notebooks have been syntax-checked, the 2026 correction notebook
+was rerun successfully, and the restored historical main workflow completed
+end to end with the recovered local inputs. The RDA workflow was also validated
+with a reduced permutation count; its production default remains 999.
