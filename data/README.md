@@ -17,6 +17,15 @@ filenames. The inspected tables contain oceanographic observations and no
 personal contact information. Other historical spreadsheets and intermediate
 tables remain excluded from Git.
 
+## Local historical archive
+
+The recovered ENVISION working directory is stored locally at
+`local_archive/ENVISION/` in the repository. This directory is intentionally
+ignored by Git because it contains roughly 12 GB of processed data, figures,
+presentations, and historical working files. In particular, the recovered
+`uc099_debris.archaea_bacteria.count_tpm_clr_(2022).tsv` input is about 9.19 GB
+and must not be added to normal Git history.
+
 The sequence datasets cited in the publication are available from the European
 Nucleotide Archive:
 
