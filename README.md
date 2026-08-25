@@ -1,4 +1,4 @@
-# MATLAB Ocean
+# Coastal-upwelling-bacterioplankton
 
 Curated MATLAB and R code used to generate oceanographic profiles, main
 figures, supplementary figures, and correction analyses associated with
