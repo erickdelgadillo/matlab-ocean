@@ -32,5 +32,14 @@ results/
 *.xls
 *.csv
 
+# Exact ENVISION inputs required by the published temporal live scripts
+!live_scripts/temporal/S3_CTD.xlsx
+!live_scripts/temporal/S3_Metadata.xlsx
+!live_scripts/temporal/S6_CTD.xlsx
+!live_scripts/temporal/S6_Metadata.xlsx
+
+# Panels exported by the temporal live scripts
+live_scripts/temporal/*.png
+
 # Keep documentation that explains how to obtain or reconstruct the data
 !data/README.md

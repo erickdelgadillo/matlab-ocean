@@ -7,3 +7,6 @@ third_party/** linguist-vendored
 
 # MATLAB Live Scripts are binary ZIP-based documents.
 *.mlx binary
+
+# Scientific input workbooks are binary files.
+*.xlsx binary
