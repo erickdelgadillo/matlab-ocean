@@ -1,18 +1,20 @@
 # Keep GitHub language statistics focused on the project's own MATLAB code.
 third_party/** linguist-vendored
 
-# Force GitHub Linguist to classify MATLAB source and Live Scripts correctly.
+# Disambiguate MATLAB source files from Objective-C source files.
 *.m linguist-language=MATLAB
-*.mlx linguist-language=MATLAB
 
-# R Markdown notebooks contain the publication R analysis.
+# R Markdown is classified as prose by default, so include it in language stats.
 *.Rmd linguist-language=R
+*.Rmd linguist-detectable
 
 # Preserve intentional trailing spaces in historical scientific CSV fields.
 r_analysis/Calculations/*.csv -whitespace
 
-# MATLAB Live Scripts are binary ZIP-based documents.
+# MATLAB Live Scripts are ZIP-based binary documents. Keep them in the
+# repository without counting their compressed size as authored source code.
 *.mlx binary
+*.mlx -linguist-detectable
 
 # Scientific input workbooks are binary files.
 *.xlsx binary
