@@ -1,0 +1,241 @@
+---
+title: "CLR_and _nMDS"
+author: "Erick Delgadillo"
+date: "7/6/2022"
+output: html_document
+---
+```{r envision_paths, include=FALSE}
+.envision_input <- tryCatch(knitr::current_input(dir = TRUE), error = function(e) "")
+.envision_candidates <- unique(c(
+  Sys.getenv("ENVISION_PROJECT_ROOT", unset = ""),
+  if (length(.envision_input) && nzchar(.envision_input)) dirname(.envision_input) else character(),
+  getwd()
+))
+.envision_candidates <- .envision_candidates[nzchar(.envision_candidates) & dir.exists(.envision_candidates)]
+.envision_config <- ""
+.envision_cursor <- ""
+for (.envision_start in .envision_candidates) {
+  .envision_probe <- normalizePath(.envision_start, winslash = "/", mustWork = TRUE)
+  repeat {
+    .envision_candidate <- file.path(.envision_probe, "R", "envision_paths.R")
+    if (file.exists(.envision_candidate)) {
+      .envision_cursor <- .envision_probe
+      .envision_config <- .envision_candidate
+      break
+    }
+    .envision_parent <- dirname(.envision_probe)
+    if (identical(.envision_parent, .envision_probe)) break
+    .envision_probe <- .envision_parent
+  }
+  if (nzchar(.envision_config)) break
+}
+if (!nzchar(.envision_config)) stop("No se encontró R/envision_paths.R")
+options(envision.project_root = .envision_cursor)
+source(.envision_config)
+```
+
+```{r nmds_settings, include=FALSE}
+envision_permutations <- getOption("envision.permutations", 999L)
+```
+
+```{r Loading packages, include=FALSE}
+require(dtplyr); sprintf("dtplyr: %s", packageVersion("dtplyr"))
+require(tidyr); sprintf("tidyr: %s", packageVersion("tidyr")) # For pivot_longer
+require(tibble); sprintf("tibble: %s", packageVersion("tibble")) # For column_to_rownames
+require(dplyr); sprintf("dplyr: %s", packageVersion("dplyr")) # For mutate
+require(readr); sprintf("readr: %s", packageVersion("readr")) # For read_tsv
+require(vegan); sprintf("vegan: %s", packageVersion("vegan")) # For nMDS
+require(ggplot2); sprintf("ggplot2: %s", packageVersion("ggplot2")) # You know
+require(CoDaSeq); sprintf("CoDaSeq: %s", packageVersion("CoDaSeq"))
+
+```
+
+```{r}
+uc099_debris.archaea_bacteria.count_tpm_clr <- read_tsv (calculation_file("uc099_debris.archaea_bacteria.count_tpm_clr_(2022).tsv"))
+
+Envision_Labels_2022 <- read.csv(calculation_file("Envision_Labels_2022.csv"))
+
+```
+
+
+```{r}
+ENV_field <- uc099_debris.archaea_bacteria.count_tpm_clr %>%
+    dplyr::filter(sample %in% Envision_Labels_2022$sample)
+```
+
+
+```{r, cache = FALSE}
+ENV_field_nmaped_matrix <- ENV_field %>%
+   dplyr::select(sample, sequence, n_mapped) %>%
+    mutate(n_mapped = n_mapped + 1 ) %>%
+  spread(sequence, n_mapped, fill = 1)
+```
+
+
+```{r, cache = FALSE}
+ENV_field_nmaped_matrix_RenameSample <- ENV_field_nmaped_matrix %>%
+    mutate(sample = sub("_reseq$", "", sample))
+# ENV_field_codaseq_clr_MATRIX <- readRDS("ENV_field_codaseq_clr_MATRIX.rds")
+```
+
+
+```{r, cache = FALSE}
+ENV_field_codaseq_clr <- ENV_field_nmaped_matrix_RenameSample %>%
+  column_to_rownames('sample') %>%
+  codaSeq.clr(samples.by.row = FALSE) %>% #calculate clr
+  as.data.frame() %>%
+  rownames_to_column('sample')
+# saveRDS(ENV_field_codaseq_clr_MATRIX, file = "ENV_field_c odaseq_clr.rds")
+```
+
+
+```{r nMDS}
+ENV_nMDS <- ENV_field_codaseq_clr %>%
+  separate(sample, c("cruise", "day", "station"), sep="_", remove=T) %>%
+  unite(sample, cruise, station, day, sep="_", remove=T) %>%
+  separate(sample, c("cruise", "station", "day"), sep="_", remove=F) %>%
+  # unite(station_day, station, day, sep="_", remove=T) %>%
+  # dplyr::select(-cruise) %>%
+  # dplyr::select(sample, everything()) %>%
+  mutate(order = case_when(
+    cruise == "ENV1" &  station == "S3" & day == "D1"  ~ 1,
+    cruise == "ENV1" &  station == "S3" & day == "D3"  ~ 2,
+    cruise == "ENV1" &  station == "S3" & day == "D5"  ~ 3,
+    cruise == "ENV1" &  station == "S3" & day == "D7"  ~ 4,
+    cruise == "ENV1" &  station == "S6" & day == "D1"  ~ 5,
+    cruise == "ENV1" &  station == "S6" & day == "D3"  ~ 6,
+    cruise == "ENV1" &  station == "S6" & day == "D5"  ~ 7,
+    cruise == "ENV1" &  station == "S6" & day == "D7"  ~ 8,
+
+    cruise == "ENV2" &  station == "S3" & day == "D1"  ~ 9,
+    cruise == "ENV2" &  station == "S3" & day == "D3"  ~ 10,
+    cruise == "ENV2" &  station == "S3" & day == "D5"  ~ 11,
+    cruise == "ENV2" &  station == "S3" & day == "D7"  ~ 12,
+    cruise == "ENV2" &  station == "S6" & day == "D1"  ~ 13,
+    cruise == "ENV2" &  station == "S6" & day == "D3"  ~ 14,
+    cruise == "ENV2" &  station == "S6" & day == "D5"  ~ 15,
+    cruise == "ENV2" &  station == "S6" & day == "D7"  ~ 16,
+
+    cruise == "ENV3" &  station == "S3" & day == "D1"  ~ 17,
+    cruise == "ENV3" &  station == "S3" & day == "D3"  ~ 18,
+    cruise == "ENV3" &  station == "S3" & day == "D5"  ~ 19,
+    cruise == "ENV3" &  station == "S3" & day == "D7"  ~ 20,
+    cruise == "ENV3" &  station == "S6" & day == "D1"  ~ 21,
+    cruise == "ENV3" &  station == "S6" & day == "D3"  ~ 22,
+    cruise == "ENV3" &  station == "S6" & day == "D5"  ~ 23,
+    cruise == "ENV3" &  station == "S6" & day == "D7"  ~ 24,
+    TRUE ~ NA_integer_
+  )) %>%
+  arrange(order)
+
+
+ c(1)
+
+
+```
+
+
+```{r nMDS_2}
+ENV_nMDS$cruise_station=factor(rep(c(
+  rep("Winter Coast", 4),
+  rep("Winter Offshore", 4),
+  rep("Spring Coast", 4),
+  rep("Spring Offshore", 4),
+  rep("Summer Coast", 4),
+  rep("Summer Offshore", 4)
+  )))
+```
+
+
+```{r nMDS_3}
+ENV_nMDS.matrix <- ENV_nMDS %>%
+  dplyr::select(where(is.numeric), -order) %>%
+  as.matrix()
+
+ENV_nMDS.dist <- vegdist(ENV_nMDS.matrix, method='eucl')
+
+set.seed(123)
+ENV_nMDS.div <- adonis2(
+  ENV_nMDS.dist ~ station * cruise_station,
+  data = ENV_nMDS,
+  permutations = envision_permutations,
+  method = "eucl"
+)
+
+# anova(ENV_nMDS.dist) ### overall test of the significant of the analysis
+
+
+ENV_nMDS.div
+```
+
+
+```{r nMDS_4}
+NMDS=metaMDS(ENV_nMDS.dist, k=2)
+
+ENV_nMDS.perm=as.data.frame(scores(NMDS))
+ENV_nMDS.perm$cruise_station=ENV_nMDS$cruise_station
+ENV_nMDS.perm$Div=ENV_nMDS$station
+```
+
+
+```{r nMDS_5}
+
+MDS=data.frame(MDS1=NMDS$points[,1], MDS2=NMDS$points[,2], group=ENV_nMDS$cruise_station) # This is the gruping parameter
+
+```
+
+
+```{r nMDS_6}
+veganCovEllipse<-function (cov, center = c(0, 0), scale = 1, npoints = 100)
+{
+  theta <- (0:npoints) * 2 * pi/npoints
+  Circle <- cbind(cos(theta), sin(theta))
+  t(center + scale * t(Circle %*% chol(cov)))
+}
+
+df_ell <- data.frame()
+for(g in levels(MDS$group)){
+  df_ell <- rbind(df_ell, cbind(as.data.frame(with(MDS[MDS$group==g,],
+                                                   veganCovEllipse(cov.wt(cbind(MDS1,MDS2),wt=rep(1/length(MDS1),length(MDS1)))$cov,center=c(mean(MDS1),mean(MDS2)))))
+                                ,group=g))
+}
+```
+
+
+```{r nMDS_7}
+ENV_nMDS_OG <- ggplot(ENV_nMDS.perm, aes(x=NMDS1, y=NMDS2)) +
+# geom_polygon(data=df_ell, aes(x=MDS1, y=MDS2, group=group), fill=NA, colour=ENV_nMDS.perm$cruise_station)+
+geom_point(aes(NMDS1, NMDS2, colour = factor(ENV_nMDS.perm$cruise_station), shape = factor(ENV_nMDS.perm$Div)), size = 2) +
+  # coord_fixed()+
+  theme_bw() +
+  theme(panel.background = element_rect(fill = NA, colour = "black", size = 1, linetype = "solid")) +
+  # labs(colour = "cruise_station", shape = "station_day") +
+        scale_colour_manual(values = c( "orangered", # spring/coast
+                                        "orangered4", # spring/offshore
+                                        "seagreen1",  # summer/coast
+                                        "seagreen4", # summer/offshore
+                                         "royalblue", # winter/coast
+                                        "royalblue4")) + # winter/offshore
+        scale_fill_manual(values = c( "orangered", # spring/coast
+                                        "orangered4", # spring/offshore
+                                        "seagreen1",  # summer/coast
+                                        "seagreen4", # summer/offshore
+                                         "royalblue", # winter/coast
+                                        "royalblue4")) + # winter/offshore
+  theme(legend.position = "none",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 8),
+        axis.text = element_text(size = 8)) +
+          guides(fill = guide_legend(override.aes = list(size=14)))+
+    # guides(fill=NULL) +
+     # geom_path(data=df_ell, aes(x=MDS1, y=MDS2, colour=group), size=1, linetype=1,  alpha = 1)+
+  geom_polygon(data=df_ell, aes(x=MDS1, y=MDS2, fill = group), alpha = 0.2)
+
+ENV_nMDS_OG
+
+ggsave(figure_file("Figura_2A_nMDS_AllProfiles.png"),
+       width = 10, # anchura
+       height =10, # altura
+       units = "cm",
+       dpi = 300)
+```

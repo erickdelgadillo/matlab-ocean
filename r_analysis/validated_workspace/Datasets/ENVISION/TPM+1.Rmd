@@ -1,0 +1,576 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-20"
+---
+```{r envision_paths, include=FALSE}
+.envision_input <- tryCatch(knitr::current_input(dir = TRUE), error = function(e) "")
+.envision_candidates <- unique(c(
+  Sys.getenv("ENVISION_PROJECT_ROOT", unset = ""),
+  if (length(.envision_input) && nzchar(.envision_input)) dirname(.envision_input) else character(),
+  getwd()
+))
+.envision_candidates <- .envision_candidates[nzchar(.envision_candidates) & dir.exists(.envision_candidates)]
+.envision_config <- ""
+.envision_cursor <- ""
+for (.envision_start in .envision_candidates) {
+  .envision_probe <- normalizePath(.envision_start, winslash = "/", mustWork = TRUE)
+  repeat {
+    .envision_candidate <- file.path(.envision_probe, "R", "envision_paths.R")
+    if (file.exists(.envision_candidate)) {
+      .envision_cursor <- .envision_probe
+      .envision_config <- .envision_candidate
+      break
+    }
+    .envision_parent <- dirname(.envision_probe)
+    if (identical(.envision_parent, .envision_probe)) break
+    .envision_probe <- .envision_parent
+  }
+  if (nzchar(.envision_config)) break
+}
+if (!nzchar(.envision_config)) stop("No se encontró R/envision_paths.R")
+options(envision.project_root = .envision_cursor)
+source(.envision_config)
+```
+
+
+
+
+
+```{r}
+Used_gene_list <-  Killer_plot %>%
+dplyr::select(gene_protein, category) %>%
+  filter(category !="Cellular Processes") %>%
+  filter(category !="Wothers") %>%
+  filter(category !="Wothers_vitamins")
+
+Used_gene_list <- (unique(Used_gene_list))
+
+
+# write.csv(Used_gene_list, "Used_gene_list.csv")
+```
+
+
+```{r}
+Gene_abundance <- ENV_field_2022_No_psbA %>%
+  dplyr::select(sample, tpm, gene_protein, category) %>%
+    group_by(sample, gene_protein, category) %>%
+    dplyr::summarise(tpm=sum(tpm)) %>%
+       filter(category !="Cellular Processes") %>%
+        filter(category !="Wothers") %>%
+        filter(category !="Wothers_vitamins") %>%
+        filter(gene_protein !="NA") %>%
+      filter(category %in% Used_gene_list$category) %>%
+  unite(gene_protein, gene_protein, category, sep="_") %>%
+  mutate(tpm = tpm + 1 ) %>%
+  spread(gene_protein, tpm, fill = 1) %>%
+  filter(sample !="NA_NA")
+
+Gene_abundance_long <- pivot_longer(Gene_abundance, cols=2:190, names_to = "gene_protein", values_to = "tpm")
+
+```
+  # outer_join(Seasons_tags, by="cruise_station") %>%
+
+```{r}
+Gene_abundance2 <- Gene_abundance_long %>%
+  separate(gene_protein, c("gene_protein", "category"), sep="_", remove=T) %>%
+  separate(sample, c("cruise", "day", "station"), sep="_", remove=F) %>%
+    separate(day, c("D", "time"), sep="D", remove=T) %>%
+      dplyr::select(-D) %>%
+  unite(cruise_station, cruise, station, sep="_") %>%
+   join(Seasons_tags_nodays, by="cruise_station")%>%
+      dplyr::select(-Condition) %>%
+      separate(Season_Station, c( "Season", "Station"), sep="/", remove=T) #%>%
+  # group_by(Season, Station, time, gene_protein, category) %>%
+  # dplyr::summarise(tpm=sum(tpm), n_tax_trancripts=n()) %>%
+  # ungroup()
+
+Gene_abundance2$Station  <- factor(Gene_abundance2$Station, levels = c( "Offshore", "Coast"))
+
+Gene_abundance2$Season  <- factor(Gene_abundance2$Season, levels = c( "Winter", "Spring", "Summer"))
+```
+
+
+
+
+```{r}
+Genes_abundance_plot2 <- Gene_abundance2 %>%
+  dplyr::select(cruise_station, category,  tpm) %>%
+  unite(Identificator, cruise_station, category,  sep="-", remove=T)
+
+mean_by_days <- Gene_abundance2 %>%
+  # filter(Filter=="yes") %>%
+  group_by(cruise_station, category) %>%
+    dplyr::select(cruise_station, category, tpm) %>%
+  dplyr::summarise(mean_tpm=mean(tpm), n=n()) %>%
+  unite(Identificator, cruise_station, category, sep="-", remove=T) %>%
+    dplyr::select(Identificator, mean_tpm,n)
+
+Genes_abundance_ratio_plot <- Genes_abundance_plot2 %>%
+  full_join(mean_by_days, by ="Identificator") %>%
+    group_by(Identificator) %>%
+    mutate(ratio_tpm = `tpm` / mean_tpm) %>%
+    arrange(ratio_tpm) %>%
+      separate(Identificator, c("Season", "Station"), sep="_", remove=T) %>%
+      separate(Station, c("Station", "category", "gene_protein"), sep="-", remove=T)  %>%
+  unite(cruise_station, Season, Station, sep="_", remove=T) %>%
+  join(Seasons_tags_nodays, by="cruise_station")%>%
+      separate(Season_Station, c( "Season", "Station"), sep="/", remove=T)
+ # write.csv(Genes_abundance_ratio_plot, "Genes_abundance_ratio_plot.csv")
+
+
+
+Genes_abundance_ratio_plot$Season  <- factor(Genes_abundance_ratio_plot$Season,
+                                                      levels = c( "Winter", "Spring", "Summer"))
+
+Genes_abundance_ratio_plot$Station  <- factor(Genes_abundance_ratio_plot$Station,
+                                           levels = c("Offshore", "Coast"))
+
+```
+
+
+```{r PLOTTING Boxplot of selected environmental variables, fig.height=5, fig.width=7}
+CNP_ratio_plot <- Genes_abundance_ratio_plot %>%
+      filter(category %in% c("Carbon metabolism", "Nitrogen metabolism", "Phosphorus metabolism"))
+
+
+plot1 <- ggplot(CNP_ratio_plot, aes(x=Season, y=ratio_tpm, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(category ~ Station,
+   labeller = label_wrap_gen(10)) +
+  # theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+        ylim(0, 3) +
+  theme(panel.spacing = unit(0.4, "lines"))
+plot1
+
+```
+```{r PLOTTING Boxplot of selected environmental variables_2, fig.height=5, fig.width=7}
+S_Fe_RSt_ratio_plot <- Genes_abundance_ratio_plot %>%
+      filter(category %in% c("Sulfur metabolism", "Iron metabolism", "Response to stress"))
+
+S_Fe_RSt_ratio_plot$category  <- factor(S_Fe_RSt_ratio_plot$category,
+                                                      levels = c( "Sulfur metabolism", "Iron metabolism", "Response to stress"))
+
+plot2 <- ggplot(S_Fe_RSt_ratio_plot, aes(x=Season, y=ratio_tpm, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(category ~ Station,
+   labeller = label_wrap_gen(10)) +
+  theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+        ylim(0, 3) +
+  theme(panel.spacing = unit(0.4, "lines"))
+plot2
+
+```
+
+```{r PLOTTING Boxplot of selected environmental variables_3, fig.height=5, fig.width=7}
+RSm_Vit_phot_ratio_plot <- Genes_abundance_ratio_plot %>%
+      filter(category %in% c("Response to stimuli", "Vitamins", "Phototrophy"))
+
+RSm_Vit_phot_ratio_plot$category  <- factor(RSm_Vit_phot_ratio_plot$category,
+                                                      levels = c( "Response to stimuli", "Vitamins", "Phototrophy"))
+
+plot3 <- ggplot(RSm_Vit_phot_ratio_plot, aes(x=Season, y=ratio_tpm, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(category ~ Station,
+   labeller = label_wrap_gen(10)) +
+  theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+        ylim(0, 3) +
+  theme(panel.spacing = unit(0.4, "lines"))
+plot3
+
+```
+
+```{r, fig.height=10, fig.width=15}
+# Unir los gráficos
+combinacion_grafica <- plot_grid(plot1,
+                                 plot2,
+                                 plot3,
+                                           ncol=3)
+
+combinacion_grafica <- add_sub(combinacion_grafica,
+"
+Variation of the transcription of carbon (n=31), nitrogen (n=29), phosphorus (n=17), sulfur (n=16), and iron (n=18), response to stress (n=15), and to stimuli (n=21), vitamin synthesis (n=6) and phototrophy (n=15). The boxes show the median variation ratio calculated by dividing the relative daily abundance of each gene (TPM; n=4) by the mean TPM of all genes in each category at the costal or offshore station during winter (WIN), spring (SPG), and summer (SUM).
+
+", size=14, x = 0, hjust = 0)
+
+ggdraw(combinacion_grafica)
+
+
+print(combinacion_grafica)
+#
+   ggsave(figure_file("Acorrected_Ratio_category_Mean_by_ALLgenes_in_each_cruise-station.png"),
+           width = 40, # anchura
+           height = 25, # altura
+           units = "cm",
+           dpi = 600)
+
+```
+
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-14"
+---
+
+```{r}
+Genes_abundance_plot2 <- Gene_abundance2 %>%
+  dplyr::select(cruise_station, category, gene_protein, time, tpm) %>%
+  unite(Identificator, cruise_station, category, gene_protein, sep="-", remove=T)
+
+mean_by_days <- Gene_abundance2 %>%
+
+  group_by(cruise_station, category, gene_protein) %>% # este es el de las bolas
+
+    dplyr::select(cruise_station, category, gene_protein, tpm) %>%
+  dplyr::summarise(mean_tpm=mean(tpm), n=n()) %>%
+  unite(Identificator, cruise_station, category, gene_protein, sep="-", remove=T) %>%
+    dplyr::select(Identificator, mean_tpm,n)
+
+Genes_abundance_ratio_plot <- Genes_abundance_plot2 %>%
+  full_join(mean_by_days, by ="Identificator") %>%
+    group_by(Identificator) %>%
+    mutate(ratio_tpm = `tpm` / mean_tpm) %>%
+    arrange(ratio_tpm) %>%
+      separate(Identificator, c("Season", "Station"), sep="_", remove=T) %>%
+      separate(Station, c("Station", "category", "gene_protein"), sep="-", remove=T)  %>%
+  unite(cruise_station, Season, Station, sep="_", remove=T) %>%
+  join(Seasons_tags_nodays, by="cruise_station")%>%
+      separate(Season_Station, c( "Season", "Station"), sep="/", remove=T)
+ # write.csv(Genes_abundance_ratio_plot, "Genes_abundance_ratio_plot.csv")
+
+
+
+Genes_abundance_ratio_plot$Season  <- factor(Genes_abundance_ratio_plot$Season,
+                                                      levels = c( "Winter", "Spring", "Summer"))
+
+Genes_abundance_ratio_plot$Station  <- factor(Genes_abundance_ratio_plot$Station,
+                                           levels = c("Offshore", "Coast"))
+```
+
+
+```{r PLOTTING Boxplot of selected environmental variables_4, fig.height=5, fig.width=7}
+CNP_ratio_plot <- Genes_abundance_ratio_plot %>%
+      filter(category %in% c("Carbon metabolism", "Nitrogen metabolism", "Phosphorus metabolism"))
+
+
+plot1 <- ggplot(CNP_ratio_plot, aes(x=Season, y=ratio_tpm, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(category ~ Station,
+   labeller = label_wrap_gen(10)) +
+  theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+        ylim(0, 3) +
+  theme(panel.spacing = unit(0.4, "lines"))
+plot1
+
+```
+```{r PLOTTING Boxplot of selected environmental variables_5, fig.height=5, fig.width=7}
+S_Fe_RSt_ratio_plot <- Genes_abundance_ratio_plot %>%
+      filter(category %in% c("Sulfur metabolism", "Iron metabolism", "Response to stress"))
+
+S_Fe_RSt_ratio_plot$category  <- factor(S_Fe_RSt_ratio_plot$category,
+                                                      levels = c( "Sulfur metabolism", "Iron metabolism", "Response to stress"))
+
+plot2 <- ggplot(S_Fe_RSt_ratio_plot, aes(x=Season, y=ratio_tpm, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(category ~ Station,
+   labeller = label_wrap_gen(10)) +
+  theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+        ylim(0, 3) +
+  theme(panel.spacing = unit(0.4, "lines"))
+plot2
+
+```
+
+```{r PLOTTING Boxplot of selected environmental variables_6, fig.height=5, fig.width=7}
+RSm_Vit_phot_ratio_plot <- Genes_abundance_ratio_plot %>%
+      filter(category %in% c("Response to stimuli", "Vitamins", "Phototrophy"))
+
+RSm_Vit_phot_ratio_plot$category  <- factor(RSm_Vit_phot_ratio_plot$category,
+                                                      levels = c( "Response to stimuli", "Vitamins", "Phototrophy"))
+
+plot3 <- ggplot(RSm_Vit_phot_ratio_plot, aes(x=Season, y=ratio_tpm, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(category ~ Station,
+   labeller = label_wrap_gen(10)) +
+  theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+        ylim(0, 3) +
+  theme(panel.spacing = unit(0.4, "lines"))
+plot3
+
+```
+
+```{r, fig.height=10, fig.width=15}
+# Unir los gráficos
+combinacion_grafica <- plot_grid(plot1,
+                                 plot2,
+                                 plot3,
+                                           ncol=3)
+
+combinacion_grafica <- add_sub(combinacion_grafica,
+"
+Variation of the transcription of carbon (n=31), nitrogen (n=29), phosphorus (n=17), sulfur (n=16), and iron (n=18), response to stress (n=15), and to stimuli (n=21), vitamin synthesis (n=6) and phototrophy (n=15). The boxes show the median variation ratio calculated by dividing the relative daily abundance of each gene (TPM; n=4) by the mean TPM of all days (n=4).
+
+
+", size=14, x = 0, hjust = 0)
+
+ggdraw(combinacion_grafica)
+
+
+print(combinacion_grafica)
+#
+   ggsave(figure_file("Acorrected_Ratio_category_Mean_by_gene-cruise-station.png"),
+           width = 40, # anchura
+           height = 25, # altura
+           units = "cm",
+           dpi = 600)
+
+```
+
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-14"
+---
+
+```{r}
+Genes_abundance_plot2 <- Gene_abundance2 %>%
+  dplyr::select(cruise_station, category, gene_protein, time, tpm) %>%
+  unite(Identificator,category, gene_protein, sep="-", remove=T)
+
+mean_by_days <- Gene_abundance2 %>%
+  group_by(category, gene_protein) %>% # este es el de las bolas
+    dplyr::select(category, gene_protein, tpm) %>%
+  dplyr::summarise(mean_tpm=mean(tpm), n=n()) %>%
+  unite(Identificator,category, gene_protein, sep="-", remove=T)
+
+Genes_abundance_ratio_plot <- Genes_abundance_plot2 %>%
+  full_join(mean_by_days, by ="Identificator") %>%
+    mutate(ratio_tpm = `tpm` / mean_tpm) %>%
+    arrange(ratio_tpm) %>%
+      separate(Identificator, c("category", "gene_protein"), sep="-", remove=T) %>%
+  join(Seasons_tags_nodays, by="cruise_station")      %>%
+      separate(Season_Station, c( "Season", "Station"), sep="/", remove=T)
+ # write.csv(Genes_abundance_ratio_plot, "Genes_abundance_ratio_plot.csv")
+
+
+
+Genes_abundance_ratio_plot$Season  <- factor(Genes_abundance_ratio_plot$Season,
+                                                      levels = c( "Winter", "Spring", "Summer"))
+
+Genes_abundance_ratio_plot$Station  <- factor(Genes_abundance_ratio_plot$Station,
+                                           levels = c("Offshore", "Coast"))
+
+```
+
+
+```{r PLOTTING Boxplot of selected environmental variables_7, fig.height=5, fig.width=7}
+CNP_ratio_plot <- Genes_abundance_ratio_plot %>%
+      filter(category %in% c("Carbon metabolism", "Nitrogen metabolism", "Phosphorus metabolism"))
+
+
+plot1 <- ggplot(CNP_ratio_plot, aes(x=Season, y=ratio_tpm, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(outlier.shape = NA, width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(category ~ Station,
+   labeller = label_wrap_gen(10)) +
+  # theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+        ylim(0, 3) +
+  theme(panel.spacing = unit(0.4, "lines"))
+plot1
+
+```
+```{r PLOTTING Boxplot of selected environmental variables_8, fig.height=5, fig.width=7}
+S_Fe_RSt_ratio_plot <- Genes_abundance_ratio_plot %>%
+      filter(category %in% c("Sulfur metabolism", "Iron metabolism", "Response to stress"))
+
+S_Fe_RSt_ratio_plot$category  <- factor(S_Fe_RSt_ratio_plot$category,
+                                                      levels = c( "Sulfur metabolism", "Iron metabolism", "Response to stress"))
+
+plot2 <- ggplot(S_Fe_RSt_ratio_plot, aes(x=Season, y=ratio_tpm, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(category ~ Station,
+   labeller = label_wrap_gen(10)) +
+  theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+      ylim(0, 3) +
+  theme(panel.spacing = unit(0.4, "lines"))
+plot2
+
+```
+
+```{r PLOTTING Boxplot of selected environmental variables_9, fig.height=5, fig.width=7}
+RSm_Vit_phot_ratio_plot <- Genes_abundance_ratio_plot %>%
+      filter(category %in% c("Response to stimuli", "Vitamins", "Phototrophy"))
+
+RSm_Vit_phot_ratio_plot$category  <- factor(RSm_Vit_phot_ratio_plot$category,
+                                                      levels = c( "Response to stimuli", "Vitamins", "Phototrophy"))
+
+plot3 <- ggplot(RSm_Vit_phot_ratio_plot, aes(x=Season, y=ratio_tpm, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(category ~ Station,
+   labeller = label_wrap_gen(10)) +
+  theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+        ylim(0, 3) +
+  theme(panel.spacing = unit(0.4, "lines"))
+plot3
+
+```
+
+```{r, fig.height=10, fig.width=15}
+# Unir los gráficos
+combinacion_grafica <- plot_grid(plot1,
+                                 plot2,
+                                 plot3,
+                                           ncol=3)
+
+combinacion_grafica <- add_sub(combinacion_grafica,
+"
+Variation of the transcription of carbon (n=31), nitrogen (n=29), phosphorus (n=17), sulfur (n=16), and iron (n=18), response to stress (n=15), and to stimuli (n=21), vitamin synthesis (n=6) and phototrophy (n=15). The boxes show the median variation ratio calculated by dividing the relative daily abundance of each gene by the mean TPM of the gene in all seasons and both stations.
+
+", size=14, x = 0, hjust = 0)
+
+ggdraw(combinacion_grafica)
+
+
+print(combinacion_grafica)
+#
+   ggsave(figure_file("A_Ratio_cetegory_plor3.png"),
+           width = 40, # anchura
+           height = 25, # altura
+           units = "cm",
+           dpi = 600)
+
+```

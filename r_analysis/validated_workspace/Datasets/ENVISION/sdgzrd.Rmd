@@ -1,0 +1,189 @@
+```{r envision_paths, include=FALSE}
+.envision_input <- tryCatch(knitr::current_input(dir = TRUE), error = function(e) "")
+.envision_candidates <- unique(c(
+  Sys.getenv("ENVISION_PROJECT_ROOT", unset = ""),
+  if (length(.envision_input) && nzchar(.envision_input)) dirname(.envision_input) else character(),
+  getwd()
+))
+.envision_candidates <- .envision_candidates[nzchar(.envision_candidates) & dir.exists(.envision_candidates)]
+.envision_config <- ""
+.envision_cursor <- ""
+for (.envision_start in .envision_candidates) {
+  .envision_probe <- normalizePath(.envision_start, winslash = "/", mustWork = TRUE)
+  repeat {
+    .envision_candidate <- file.path(.envision_probe, "R", "envision_paths.R")
+    if (file.exists(.envision_candidate)) {
+      .envision_cursor <- .envision_probe
+      .envision_config <- .envision_candidate
+      break
+    }
+    .envision_parent <- dirname(.envision_probe)
+    if (identical(.envision_parent, .envision_probe)) break
+    .envision_probe <- .envision_parent
+  }
+  if (nzchar(.envision_config)) break
+}
+if (!nzchar(.envision_config)) stop("No se encontró R/envision_paths.R")
+options(envision.project_root = .envision_cursor)
+source(.envision_config)
+```
+
+```{r PLOTTING Figure 4, with all Categories, fig.height=18, fig.width=25}
+
+Carbon_metabolism <- Killer_plot %>%
+filter(category=="Carbon metabolism")
+
+  Categories_sumTPM_plot <- ggplot(Carbon_metabolism, aes(x=Season_Station, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Carbon metabolism")+
+    labs(x="", y="sumTPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 22, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=11, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=11, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="right") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    scale_x_discrete(labels = c(
+      "Winter/Offshore" = "WIN",
+      "Spring/Offshore" = "SPG",
+      "Summer/Offshore" = "SUM",
+      "Winter/Coast" = "WIN",
+      "Spring/Coast" = "SPG",
+      "Summer/Coast" = "SUM" )) +
+facet_nested_wrap(~subcategory+gene_protein+dificult_label, scales = "free_y", ncol = 7)
+
+Categories_sumTPM_plot
+
+   ggsave(figure_file("Carbon metabolism_Killerplot.png"),
+           width = 45 , # anchura
+           height = 35, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+```
+
+```{r PLOTTING Figure 4_2, with all Categories, fig.height=18, fig.width=25}
+
+Nitrogen_metabolism <- Killer_plot %>%
+filter(category=="Nitrogen metabolism")
+
+  Categories_sumTPM_plot <- ggplot(Nitrogen_metabolism, aes(x=Season_Station, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Nitrogen metabolism")+
+    labs(x="", y="sumTPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 22, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=11, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=11, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="right") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    scale_x_discrete(labels = c(
+      "Winter/Offshore" = "WIN",
+      "Spring/Offshore" = "SPG",
+      "Summer/Offshore" = "SUM",
+      "Winter/Coast" = "WIN",
+      "Spring/Coast" = "SPG",
+      "Summer/Coast" = "SUM" )) +
+facet_nested_wrap(~subcategory+gene_protein+dificult_label, scales = "free_y", ncol = 7)
+
+Categories_sumTPM_plot
+
+   ggsave(figure_file("Nitrogen metabolism_Killerplot.png"),
+           width = 45 , # anchura
+           height = 35, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+```
+
+```{r PLOTTING Figure 4_3, with all Categories, fig.height=18, fig.width=25}
+
+Phosphorus_metabolism <- Killer_plot %>%
+filter(category=="Phosphorus metabolism")
+
+  Categories_sumTPM_plot <- ggplot(Phosphorus_metabolism, aes(x=Season_Station, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Phosphorus metabolism")+
+    labs(x="", y="sumTPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 22, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=11, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=11, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="right") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    scale_x_discrete(labels = c(
+      "Winter/Offshore" = "WIN",
+      "Spring/Offshore" = "SPG",
+      "Summer/Offshore" = "SUM",
+      "Winter/Coast" = "WIN",
+      "Spring/Coast" = "SPG",
+      "Summer/Coast" = "SUM" )) +
+facet_nested_wrap(~subcategory+gene_protein+dificult_label, scales = "free_y", ncol = 7)
+
+Categories_sumTPM_plot
+
+   ggsave(figure_file("Phosphorus metabolism_Killerplot.png"),
+           width = 45 , # anchura
+           height = 35, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+```
+
+```{r PLOTTING Figure 4_4, with all Categories, fig.height=18, fig.width=25}
+
+Phosphorus_metabolism <- Killer_plot %>%
+filter(category=="Sulfur metabolism")
+
+  Categories_sumTPM_plot <- ggplot(Phosphorus_metabolism, aes(x=Season_Station, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Sulfur metabolism")+
+    labs(x="", y="sumTPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 22, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=11, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=11, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="right") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    scale_x_discrete(labels = c(
+      "Winter/Offshore" = "WIN",
+      "Spring/Offshore" = "SPG",
+      "Summer/Offshore" = "SUM",
+      "Winter/Coast" = "WIN",
+      "Spring/Coast" = "SPG",
+      "Summer/Coast" = "SUM" )) +
+facet_nested_wrap(~subcategory+gene_protein+dificult_label, scales = "free_y", ncol = 7)
+
+Categories_sumTPM_plot
+
+   ggsave(figure_file("Sulfur metabolism_Killerplot.png"),
+           width = 45 , # anchura
+           height = 35, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+```

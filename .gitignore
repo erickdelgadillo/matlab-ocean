@@ -40,6 +40,15 @@ r_analysis/*_cache/
 r_analysis/*_files/
 r_analysis/*.html
 
+# Code-only validated ENVISION workspace
+r_analysis/validated_workspace/Results/
+r_analysis/validated_workspace/**/*_cache/
+r_analysis/validated_workspace/**/*_files/
+r_analysis/validated_workspace/**/*.html
+r_analysis/validated_workspace/**/*.rds
+r_analysis/validated_workspace/**/*.feather
+r_analysis/validated_workspace/**/*.tsv
+
 # Large or unrecovered R inputs must remain external to Git history
 r_analysis/Calculations/*.rds
 r_analysis/Calculations/*.feather

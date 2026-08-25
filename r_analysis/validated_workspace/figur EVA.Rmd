@@ -1,0 +1,271 @@
+```{r envision_paths, include=FALSE}
+.envision_input <- tryCatch(knitr::current_input(dir = TRUE), error = function(e) "")
+.envision_candidates <- unique(c(
+  Sys.getenv("ENVISION_PROJECT_ROOT", unset = ""),
+  if (length(.envision_input) && nzchar(.envision_input)) dirname(.envision_input) else character(),
+  getwd()
+))
+.envision_candidates <- .envision_candidates[nzchar(.envision_candidates) & dir.exists(.envision_candidates)]
+.envision_config <- ""
+.envision_cursor <- ""
+for (.envision_start in .envision_candidates) {
+  .envision_probe <- normalizePath(.envision_start, winslash = "/", mustWork = TRUE)
+  repeat {
+    .envision_candidate <- file.path(.envision_probe, "R", "envision_paths.R")
+    if (file.exists(.envision_candidate)) {
+      .envision_cursor <- .envision_probe
+      .envision_config <- .envision_candidate
+      break
+    }
+    .envision_parent <- dirname(.envision_probe)
+    if (identical(.envision_parent, .envision_probe)) break
+    .envision_probe <- .envision_parent
+  }
+  if (nzchar(.envision_config)) break
+}
+if (!nzchar(.envision_config)) stop("No se encontró R/envision_paths.R")
+options(envision.project_root = .envision_cursor)
+source(.envision_config)
+```
+
+
+```{r}
+
+
+
+Genes_abundance_plot2 <- all_Superficial_Metadata_ENVISION_long %>%
+  dplyr::select(cruise_station, day, Metadata,  Value) #%>%
+  # unite(Identificator, cruise_station, Metadata,  sep="-", remove=T)
+
+
+mean_by_days <- all_Superficial_Metadata_ENVISION_long %>%
+  # filter(Filter=="yes") %>%
+  group_by(Metadata) %>%
+    dplyr::select(Metadata, Value) %>%
+  dplyr::summarise(mean_Value=mean(Value), n=n()) #%>%
+  # unite(Identificator,  cruise_station, Metadata, sep="-", remove=T) #%>%
+    # dplyr::select(Identificator, mean_Value,n)
+
+Genes_abundance_ratio_plot <- Genes_abundance_plot2 %>%
+  full_join(mean_by_days, by ="Metadata") %>%
+    group_by(Metadata) %>%
+    mutate(ratio_Value = `Value` / mean_Value) %>%
+    arrange(ratio_Value) %>%
+      # separate(Identificator, c("Season", "Station"), sep="_", remove=T) %>%
+      # separate(Station, c("Station", "Metadata"), sep="-", remove=T)  %>%
+  # unite(cruise_station, Season, Station, sep="_", remove=T) %>%
+  join(Seasons_tags_nodays, by="cruise_station") %>%
+      separate(Season_Station, c( "Season", "Station"), sep="/", remove=T)
+ # write.csv(Genes_abundance_ratio_plot, "Genes_abundance_ratio_plot.csv")
+
+
+
+Genes_abundance_ratio_plot$Station  <- factor(Genes_abundance_ratio_plot$Station,
+                                           levels = c("Offshore", "Coast"))
+
+
+Genes_abundance_ratio_plot$Season  <- factor(Genes_abundance_ratio_plot$Season,
+                                                      levels = c( "Winter", "Spring", "Summer"))
+
+
+
+```
+
+```{r}
+# Genes_abundance_ratio_plot <-  all_Superficial_Metadata_ratio_plot
+
+```
+
+
+```{r PLOTTING lineplot of selected environmental variables, fig.height=5, fig.width=5}
+Superficial_Top_environmentals <- Genes_abundance_ratio_plot %>%
+      # separate(Season_Station, c("Season", "Station"), sep="/", remove=F) %>%
+      filter(Metadata %in% c(
+                             "Salinity",
+                             "Temperature",
+                             "Chlorophyll_a"))
+
+
+
+  Superficial_Top_environmentals$Metadata  <- factor(Superficial_Top_environmentals$Metadata,
+                                                        levels = c(
+                                                          "Salinity",
+                                                          "Temperature",
+                                                          "Chlorophyll_a"))
+
+  Superficial_Top_environmentals$Season  <- factor(Superficial_Top_environmentals$Season, levels = c("Winter", "Spring", "Summer"))
+
+  Superficial_Top_environmentals$Station  <- factor(Superficial_Top_environmentals$Station, levels = c("Offshore","Coast"))
+
+  # levels(Superficial_Top_environmentals$Metadata) <- gsub("_", "\n", levels(Superficial_Top_environmentals$Metadata))
+
+Superficial_Top_environmentals$Metadata <- factor(Superficial_Top_environmentals$Metadata,
+                                                  levels = c("Salinity",
+                                                          "Temperature",
+                                                          "Chlorophyll_a"),
+                  labels = c("Salinity",
+                             "Temperature",
+                             "Chlorophyll a")
+                  )
+# ⁺⁻³²¹
+# ₁₂₃₂₄  ₁   ₂µ
+
+Superficial_Top_environmentals_boxplot1 <- ggplot(Superficial_Top_environmentals, aes(x=Season, y=ratio_Value, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(Metadata ~ Station, scales = "free_y") +
+    theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+  theme(panel.spacing = unit(0.4, "lines"))
+Superficial_Top_environmentals_boxplot1
+```
+
+
+
+bacterial abundance, nitrate (NO3-), ammonium (NH₄⁺),
+
+```{r PLOTTING Boxplot of selected environmental variables, fig.height=5, fig.width=5}
+Superficial_Top_environmentals <- Genes_abundance_ratio_plot %>%
+      # separate(Season_Station, c("Season", "Station"), sep="/", remove=F) %>%
+      filter(Metadata %in% c("Bacterial_abundance", #
+                             "NO3", #
+                             "NH4" ))
+
+
+  Superficial_Top_environmentals$Metadata  <- factor(Superficial_Top_environmentals$Metadata,
+                                                        levels = c(
+                                                          "Bacterial_abundance",
+                                                          "NO3",
+                                                          "NH4"))
+
+  Superficial_Top_environmentals$Season  <- factor(Superficial_Top_environmentals$Season, levels = c("Winter", "Spring", "Summer"))
+
+  Superficial_Top_environmentals$Station  <- factor(Superficial_Top_environmentals$Station, levels = c("Offshore","Coast"))
+
+  # levels(Superficial_Top_environmentals$Metadata) <- gsub("_", "\n", levels(Superficial_Top_environmentals$Metadata))
+
+Superficial_Top_environmentals$Metadata <- factor(Superficial_Top_environmentals$Metadata,
+                                                  levels = c("Bacterial_abundance",
+                                                             "NO3",
+                                                             "NH4"),
+                  labels = c("Bacterial\nabundance",  #N:P\nratio
+                             "NO₃⁻",
+                             "NH₄⁺"
+                          ))
+# ⁺⁻³²¹
+# ₁₂₃₂₄  ₁   ₂µ
+
+Superficial_Top_environmentals_boxplot2 <- ggplot(Superficial_Top_environmentals, aes(x=Season, y=ratio_Value, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(Metadata ~ Station, scales = "free_y") +
+    theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+  theme(panel.spacing = unit(0.4, "lines"))
+Superficial_Top_environmentals_boxplot2
+
+```
+
+phosphate (PO₄³⁻), N:P ratio, and silicate (SiO2)
+
+
+```{r PLOTTING Boxplot of selected environmental variables_2, fig.height=5, fig.width=5}
+Superficial_Top_environmentals <- Genes_abundance_ratio_plot %>%
+      # separate(Season_Station, c("Season", "Station"), sep="/", remove=F) %>%
+      filter(Metadata %in% c("PO4",
+                             "NP",
+                             "SiO2"))
+
+
+  Superficial_Top_environmentals$Metadata  <- factor(Superficial_Top_environmentals$Metadata,
+                                                        levels = c(
+                                                          "PO4",
+                                                          "NP",
+                                                          "SiO2"
+                                                          ))
+
+  Superficial_Top_environmentals$Season  <- factor(Superficial_Top_environmentals$Season, levels = c("Winter", "Spring", "Summer"))
+
+  Superficial_Top_environmentals$Station  <- factor(Superficial_Top_environmentals$Station, levels = c("Offshore","Coast"))
+
+  levels(Superficial_Top_environmentals$Metadata) <- gsub("_", "\n", levels(Superficial_Top_environmentals$Metadata))
+
+Superficial_Top_environmentals$Metadata <- factor(Superficial_Top_environmentals$Metadata,
+                                                  levels = c(
+                                                    "PO4",
+                                                    "NP",
+                                                    "SiO2"),
+                  labels = c("PO₄³⁻",
+                             "N:P\nratio",
+                             "SiO₂"
+                             ))
+# ⁺⁻³²¹
+# ₁₂₃₄ µ
+
+Superficial_Top_environmentals_boxplot3 <- ggplot(Superficial_Top_environmentals, aes(x=Season, y=ratio_Value, fill=Season)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(width = 0.8)+
+  ggtitle ("")+
+  labs(x = "",y = "")+
+  theme_linedraw(base_size = 14) +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))+
+  theme(plot.subtitle  = element_text(size = 14, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=12, face = "bold")) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=12)) + # Values
+  theme(strip.text.y = element_text(angle = 0))+
+  theme( legend.position = 'none')+
+  scale_fill_manual(values=c("royalblue4", "orangered4", "seagreen4" )) +
+facet_grid(Metadata ~ Station, scales = "free_y") +
+  theme(strip.text.y = element_text(margin = margin(0,0.1,0,0.1, "cm")))+
+      scale_x_discrete(labels = c(
+      "Winter" = "WIN",
+      "Spring" = "SPG",
+      "Summer" = "SUM" )) +
+  theme(panel.spacing = unit(0.4, "lines"))
+
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+# Unir los gráficos
+combinacion_grafica <- plot_grid(Superficial_Top_environmentals_boxplot1,
+                                 Superficial_Top_environmentals_boxplot2,
+                                 Superficial_Top_environmentals_boxplot3,
+                                           ncol=3)
+
+print(combinacion_grafica)
+#
+   ggsave(figure_file("NUEVA_FIGURA.png"),
+           width = 40, # anchura
+           height = 25, # altura
+           units = "cm",
+           dpi = 600)
+
+```

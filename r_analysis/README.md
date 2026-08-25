@@ -18,6 +18,14 @@ plots, and unrelated INTERES analyses were deliberately excluded. The
 scientific calculations are preserved; only output paths and minimal setup
 code were made portable.
 
+## Validated code-only workspace
+
+The complete set of 10 active R Markdown documents reviewed in August 2026,
+together with the shared path configuration and figure runner, is available in
+[`validated_workspace/`](validated_workspace/README.md). This snapshot keeps
+the original relative hierarchy but excludes research data and generated
+outputs from Git.
+
 ## Included inputs
 
 The `Calculations/` directory contains the 19 compact CSV inputs referenced by

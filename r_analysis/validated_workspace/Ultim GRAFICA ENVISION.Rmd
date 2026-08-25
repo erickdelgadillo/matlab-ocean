@@ -1,0 +1,198 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-10-19"
+---
+```{r envision_paths, include=FALSE}
+.envision_input <- tryCatch(knitr::current_input(dir = TRUE), error = function(e) "")
+.envision_candidates <- unique(c(
+  Sys.getenv("ENVISION_PROJECT_ROOT", unset = ""),
+  if (length(.envision_input) && nzchar(.envision_input)) dirname(.envision_input) else character(),
+  getwd()
+))
+.envision_candidates <- .envision_candidates[nzchar(.envision_candidates) & dir.exists(.envision_candidates)]
+.envision_config <- ""
+.envision_cursor <- ""
+for (.envision_start in .envision_candidates) {
+  .envision_probe <- normalizePath(.envision_start, winslash = "/", mustWork = TRUE)
+  repeat {
+    .envision_candidate <- file.path(.envision_probe, "R", "envision_paths.R")
+    if (file.exists(.envision_candidate)) {
+      .envision_cursor <- .envision_probe
+      .envision_config <- .envision_candidate
+      break
+    }
+    .envision_parent <- dirname(.envision_probe)
+    if (identical(.envision_parent, .envision_probe)) break
+    .envision_probe <- .envision_parent
+  }
+  if (nzchar(.envision_config)) break
+}
+if (!nzchar(.envision_config)) stop("No se encontró R/envision_paths.R")
+options(envision.project_root = .envision_cursor)
+source(.envision_config)
+```
+
+```{r load_dependencies, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(viridis)
+library(ggh4x)
+
+Seasons_tags <- read.csv(calculation_file("Seasons_tags.csv"), sep = ";")
+```
+
+```{r, fig.height=10, fig.width=20}
+Environmental_and_genes_ratios <- read.csv(  calculation_file("Para_Sandra_Environmental_and_genes_ratios_2026_SMG.csv"), sep = ";") %>%
+    dplyr::select(1,8,24)%>%
+    separate(sample, c( "Season", "day", "Station"), sep="_", remove=T)  %>%
+    unite(sample, Season, Station, day, sep="_", remove=T) %>%
+    left_join(Seasons_tags, by="sample") %>%
+      separate(sample, c( "Season", "day", "Station"), sep="_", remove=T) %>%
+        separate(Season_Station, c( "Season", "Station"), sep="/", remove=T)  %>%
+mutate(day = gsub("D", "", day))
+```
+
+
+```{r, fig.height=10, fig.width=10}
+
+ratio_plot <- ggplot(Environmental_and_genes_ratios, aes(y=pstS, x=PO4)) +
+  geom_point (size=4, alpha = 0.4,col = "orange3") +
+  ggtitle("pstS vs PO₄")+
+  geom_smooth(method="lm", se=T) + # Agregar línea de tendencia
+  labs(x="PO₄ ratio", y="pstS ratio", fill="", col="") +
+  theme(axis.line = element_line(size = 0.5, colour = "black")) +
+      theme_bw(base_size = 16) +
+    theme(plot.title = element_text(size = 22, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 18, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=16)) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=16)) +
+    theme(strip.text=element_text(size=16))+
+    theme(strip.text.x=element_text(size=16 , angle=0 ,face="bold"),
+          strip.text.y=element_text(size=16 , angle=0 ,face="bold") ,
+          strip.background =
+        element_rect(colour="black" ,fill="white")) +
+    theme(legend.position="top",
+          axis.title=element_text(hjust = 0.5, size=22))
+
+
+# Calcular R cuadrado
+model <- lm(pstS ~ PO4, data = Environmental_and_genes_ratios)
+r_squared <- summary(model)$r.squared
+
+## Agregar etiqueta con R cuadrado
+# ratio_plot <- ratio_plot +
+#  geom_label(x = 1, y = 0.4, label = paste("R²=", round(r_squared,2)),
+#             size = 6, color = "black", fill = "white")
+##
+ratio_plot <- ratio_plot +
+  geom_label(x = 1, y = 0.4, label = "ρ= -0.5626\n p-value= 0.0041",
+             size = 6, color = "black", fill = "white")
+
+ratio_plot
+
+ratio_plot
+
+ggsave(figure_file("regresion_NP_pstS_1.png"),
+         width = 20, # anchura
+         height = 12, # altura
+         units = "cm",
+         dpi = 600)
+
+```
+```{r}
+library(ggplot2)
+
+# 1) Modelo lineal
+fit <- lm(pstS ~ PO4, data = Environmental_and_genes_ratios)
+sumfit <- summary(fit)
+
+r2 <- sumfit$r.squared
+pval <- sumfit$coefficients["PO4", "Pr(>|t|)"]
+
+# (opcional) formateo bonito
+lab <- sprintf("R² = %.3f\np = %.2g", r2, pval)
+
+# 2) Tu plot + anotación
+ratio_plot <- ggplot(Environmental_and_genes_ratios, aes(y = pstS, x = PO4)) +
+  geom_point(size = 4, alpha = 0.4, col = "orange3") +
+  ggtitle("pstS vs PO₄") +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(x = "PO₄ ratio", y = "pstS ratio", fill = "", col = "") +
+  theme(axis.line = element_line(size = 0.5, colour = "black")) +
+  theme_bw(base_size = 16) +
+  theme(plot.title = element_text(size = 22, face = "bold", hjust = 0.5)) +
+  theme(plot.subtitle = element_text(size = 18, face = "bold", hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size = 16)) +
+  theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size = 16)) +
+  theme(strip.text = element_text(size = 16)) +
+  theme(
+    strip.text.x = element_text(size = 16, angle = 0, face = "bold"),
+    strip.text.y = element_text(size = 16, angle = 0, face = "bold"),
+    strip.background = element_rect(colour = "black", fill = "white")
+  ) +
+  theme(legend.position = "top", axis.title = element_text(hjust = 0.5, size = 22)) +
+  annotate("text", x = Inf, y = Inf, label = lab,
+           hjust = 1.1, vjust = 1.2, size = 5)
+
+ratio_plot
+
+```
+
+
+```{r, fig.height=10, fig.width=20}
+Environmental_and_genes_ratios_long <- pivot_longer(Environmental_and_genes_ratios, cols=2:3, names_to = "Metadata", values_to = "Value") #Vanessa Dataset
+
+
+Environmental_and_genes_ratios_long$Station  <- factor(Environmental_and_genes_ratios_long$Station,
+                                           levels = c("Offshore", "Coast"))
+
+Environmental_and_genes_ratios_long$Metadata <- factor(Environmental_and_genes_ratios_long$Metadata,
+                                                  levels = c("PO4", "pstS"),
+                                                  labels = c("PO₄\nratio", "pstS\nratio"))
+
+
+Environmental_and_genes_ratios_long$Season <- factor(Environmental_and_genes_ratios_long$Season,
+                                              levels = c("Winter",
+                                                         "Spring",
+                                                         "Summer"),
+                                              labels = c("WIN",
+                                                         "SPG",
+                                                         "SUM"))
+
+
+Phosphorus_metabolism_ratio_plot <- ggplot(Environmental_and_genes_ratios_long, aes(
+  x=Value, y=day, size=1,fill =Value )) + # colour=mean_tpm,
+  geom_vline(xintercept = 1) +
+  geom_point(alpha=0.2) +
+  geom_point(alpha=0.4, shape = 21) +
+  ggtitle("") +
+  labs(x="Ratio = daily value / average of 4 days", y="Time (days)") +
+    theme_bw(base_size = 16) +
+    theme(plot.title = element_text(size = 24, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 18, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=16)) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=16)) +
+    theme(strip.text = element_text(size = 18)) +
+    theme(strip.text.x = element_text(size=18, angle=0, face="bold"),
+          strip.text.y = element_text(size=18, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white"),
+        axis.title=element_text(hjust = 0.45, size=18)) +
+    theme(legend.position="none") +
+scale_fill_viridis(option="turbo", direction = 1) +
+
+    facet_nested(Metadata ~ Station+Season,
+                  scales = "free", strip = strip_nested(size = "variable"))+
+      guides(fill = guide_legend(override.aes = list(size=8)))+
+
+ coord_flip()
+
+Phosphorus_metabolism_ratio_plot
+
+ggsave(figure_file("NP_pstS_1.png"),
+         width = 20, # anchura
+         height = 12, # altur2
+         units = "cm",
+         dpi = 600)
+```

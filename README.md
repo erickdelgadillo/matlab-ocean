@@ -50,6 +50,11 @@ Large processed objects remain excluded from Git and are documented there. A
 complete local copy of the recovered ENVISION workspace is kept under the
 ignored `local_archive/ENVISION/` directory.
 
+A code-only snapshot of all 10 validated ENVISION R Markdown documents and the
+two shared R utilities is published under
+[`r_analysis/validated_workspace/`](r_analysis/validated_workspace/README.md).
+It intentionally excludes data files and generated figures.
+
 ## Running the published workflow
 
 Start MATLAB in the repository root and prepare the historical dependency path:

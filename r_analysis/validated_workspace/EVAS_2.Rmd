@@ -1,0 +1,1180 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-10-16"
+---
+```{r envision_paths, include=FALSE}
+.envision_input <- tryCatch(knitr::current_input(dir = TRUE), error = function(e) "")
+.envision_candidates <- unique(c(
+  Sys.getenv("ENVISION_PROJECT_ROOT", unset = ""),
+  if (length(.envision_input) && nzchar(.envision_input)) dirname(.envision_input) else character(),
+  getwd()
+))
+.envision_candidates <- .envision_candidates[nzchar(.envision_candidates) & dir.exists(.envision_candidates)]
+.envision_config <- ""
+.envision_cursor <- ""
+for (.envision_start in .envision_candidates) {
+  .envision_probe <- normalizePath(.envision_start, winslash = "/", mustWork = TRUE)
+  repeat {
+    .envision_candidate <- file.path(.envision_probe, "R", "envision_paths.R")
+    if (file.exists(.envision_candidate)) {
+      .envision_cursor <- .envision_probe
+      .envision_config <- .envision_candidate
+      break
+    }
+    .envision_parent <- dirname(.envision_probe)
+    if (identical(.envision_parent, .envision_probe)) break
+    .envision_probe <- .envision_parent
+  }
+  if (nzchar(.envision_config)) break
+}
+if (!nzchar(.envision_config)) stop("No se encontró R/envision_paths.R")
+options(envision.project_root = .envision_cursor)
+source(.envision_config)
+```
+
+
+
+```{r}
+# Correlations_subcategories_vs_environmental_plot <- Heatmap(
+#   spearman,
+#   name = "Spearman Correlation",
+#   cluster_rows = TRUE,
+#   cluster_columns = TRUE,
+#   clustering_distance_columns = "euclidean",
+#   width = unit(27, "cm"),
+#   height = unit(15, "cm"),
+#   row_names_gp = gpar(fontsize=18),
+#   column_names_rot = 45,
+#   row_names_rot = 0,
+#   column_names_gp = gpar(fontsize=18),
+# cell_fun = function(j, i, x, y, width, height, fill) {
+#   if(pvalue_spearman[i ,j] <=0.05)
+#     grid.text(sprintf("%.2f", pvalue_spearman[i ,j]), x + width/2 - unit(5,"mm"), y + height/2 - unit(5,"mm"), gp=gpar(fontsize=12))
+# },
+#   heatmap_legend_param = list(
+#     title="",
+#     labels_gp=gpar(fontsize=20),
+#     grid_height=unit(40,"mm"),
+#     legend_direction = "vertical",
+#     border=TRUE,
+#     legend_width = unit(8, "cm"),
+#     title_gp=gpar(fontsize=18, fontface="bold")
+#   ),
+#   row_title = "",
+#   column_title = "",
+#   column_title_gp = gpar(fontsize = 30, fontface = "bold")
+# )
+#
+# Correlations_subcategories_vs_environmental_plot <- draw(
+#   Correlations_subcategories_vs_environmental_plot,
+#   merge_legend = TRUE,
+#   heatmap_legend_side = "right",
+#   annotation_legend_side = "right"
+# )
+#
+# png('all_subcategories_vs_Euk_plot.png',
+#     width = unit(1200, 'in'), # anchura en pulgadas
+#     height = unit(1200, 'in') # altura en pulgadas
+# )
+# Correlations_subcategories_vs_environmental_plot
+# dev.off()
+```
+
+
+```{r Average of 4 days-cruise by taxa, genetic categories and subcategories, cache = TRUE}
+#
+Order_proportion_by_sample_and_category <- ENV_field_2022_No_psbA %>%  #  1,037,867 entries
+  filter(gene_protein %in% profile_protein_list_allgenes$gene_protein) %>%
+  group_by(sample, Our_Taxonomy, category, subcategory, gene_protein, importance,	dificult_label) %>%
+  dplyr::summarize(tpm=sum(tpm)) %>%
+    separate(sample, c("cruise", "day", "station"), sep="_", remove=F) %>%
+    ungroup() %>% # 23,575 entries
+      filter(sample !="NA")
+# write.csv(Order_proportion_by_sample_and_category,"Order_proportion_by_sample_and_category.csv")
+
+# Mean by day
+Order_proportion_mean_cruise_station_category <- Order_proportion_by_sample_and_category %>%
+  group_by(cruise, station, day, Our_Taxonomy, category, subcategory, gene_protein, importance,	dificult_label) %>%
+  dplyr::summarize(tpm=mean(tpm)) %>%
+  ungroup()
+
+```
+
+```{r Rename the most despicable taxa as other prokaryotes, cache = TRUE}
+#
+Most_important_orders_tpm_by_category <- Order_proportion_mean_cruise_station_category %>%
+  filter(Our_Taxonomy %in% order_list_2021$order) %>%
+  dplyr::group_by(cruise, station, day, Our_Taxonomy, category,  subcategory, gene_protein, importance,	dificult_label)
+# write.csv(Twelve_orders_tpm_oct2020,"Twelve_orders_tpm_oct2020.csv")
+
+
+
+Others_orders_tpm_by_category <- Order_proportion_mean_cruise_station_category %>%
+  filter(Our_Taxonomy %in% order_list_2021$all_others) %>% #
+  dplyr::group_by(cruise, station, day, Our_Taxonomy, category,  subcategory, gene_protein, importance,	dificult_label) %>%
+  dplyr::summarise(tpm=sum(tpm)) %>%
+  ungroup()
+
+vec <- c("Other\nbacteria") # este es el comando para sustituir mis ordenes
+Others_orders_tpm_by_category$Our_Taxonomy <- vec
+# write.csv(Others_orders_tpm_nov2020,"Others_orders_tpm_nov2020.csv")
+
+Others_orders_tpm_by_category <- Others_orders_tpm_by_category %>%
+  dplyr::group_by(cruise, station, day, Our_Taxonomy, category,  subcategory, gene_protein, importance,	dificult_label) %>%
+  dplyr::summarise(tpm=sum(tpm)) %>%
+  ungroup()
+
+# union_all
+Killer_plot <- union_all(Most_important_orders_tpm_by_category, Others_orders_tpm_by_category) %>%
+unite(cruise_station, cruise, station, sep="_") %>%
+inner_join(Seasons_tags_nodays, by="cruise_station")%>%
+    dplyr::group_by(Season_Station, day, Our_Taxonomy, category,  subcategory, gene_protein, importance,	dificult_label) %>%
+    dplyr::summarise(tpm=sum(tpm)) %>%
+      filter(category !="Wothers") %>%
+      filter(gene_protein !="aroB") %>%
+      filter(gene_protein !="phnG") %>%
+      filter(gene_protein !="napD") %>%
+    separate(Season_Station, c("Season", "Station"), sep="/", remove=F) %>%
+  ungroup()
+# write.csv(TPM_by_categorie_and_order_nov2020,"TPM_by_categorie_and_order_nov2020.csv")
+```
+
+```{r Preparing the data for Figure 4, with all Categories}
+# Ordenamos como queremos las categorias
+Killer_plot$category  <- factor(Killer_plot$category,
+                                                        levels = c(
+                                                          "Carbon metabolism", #
+                                                          "Nitrogen metabolism", #
+                                                          "Phosphorus metabolism", #
+                                                          "Sulfur metabolism", #
+                                                          "Iron metabolism", #
+                                                          "Response to stress",
+                                                          "Response to stimuli",
+                                                          "Vitamins",
+                                                          "Phototrophy",
+                                                          "Cellular Processes"
+                                                          ))
+
+# Aqui ordenamos los Taxones
+Killer_plot$Our_Taxonomy  <- factor(  Killer_plot$Our_Taxonomy,
+                                                      levels = c("Other_Proteobacteria",
+                                                                 "Other_Alphaproteobacteria",
+                                                                 "Pelagibacterales",
+                                                                 "Rhizobiales",
+                                                                 "Rhodobacterales",
+                                                                 "Rhodospirillales",
+                                                                 "Other_Gammaproteobacteria",
+                                                                 "Alteromonadales",
+                                                                 "Cellvibrionales",
+                                                                 "Oceanospirillales",
+                                                                 "Methylococcales",
+                                                                 "Other_Bacteroidetes",
+                                                                 "Flavobacteriales",
+                                                                 "Firmicutes",
+                                                                 "Spirochaetes",
+                                                                 "Verrucomicrobia",
+                                                                 "Other_Cyanobacteria",
+                                                                 "Synechococcales",
+                                                                 "Prochlorococcus",
+                                                                 "Thaumarchaeota",
+                                                                 "Other_Archaea",
+                                                                 "Planctomycetes",
+                                                                 "Other\nbacteria"))
+
+# # Aqui  ordenamos las agrupaciones por Season and Station
+# Killer_plot$Season_Station  <- factor(Killer_plot$Season_Station,
+#                                                       levels = c(
+#                                                         "Winter/Offshore", #
+#                                                         "Spring/Offshore",
+#                                                         "Summer/Offshore",#
+#                                                         "Winter/Coast", #
+#                                                         "Spring/Coast", #
+#                                                         "Summer/Coast"))
+
+
+Killer_plot$Season <- factor(Killer_plot$Season,
+                                              levels = c("Winter",
+                                                         "Spring",
+                                                         "Summer"),
+                  labels = c("WIN",
+                             "SPG",
+                             "SUM"))
+
+  Killer_plot$Season  <- factor(Killer_plot$Season, levels = c("WIN", "SPG", "SUM"))
+
+  Killer_plot$Station  <- factor(Killer_plot$Station, levels = c("Offshore","Coast"))
+
+```
+
+
+```{r PLOTTING Figure 4, with all Categories, fig.height=18, fig.width=25}
+Killer_plot_1 <- Killer_plot %>%
+  filter( gene_protein %in% c("icd",
+                              "sdhA",
+                              "zwf")) %>%
+  mutate(day = gsub("D", "", day))
+
+
+Killer_plot_1$subcategory <- factor(Killer_plot_1$subcategory,
+                                              levels = c("Carbohydrate metabolism",
+                                                         "TCA cycle"),
+                                    labels = c("Carbohydrate\n metabolism ",
+                                               "TCA\ncycle"))
+# Killer_plot_1$subcategory <- factor(Killer_plot_1$subcategory,
+#                                               levels = c("TCA cycle"),labels = c("TCA\ncycle"))
+
+  Carbon_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Carbon metabolism")+
+    labs(x="", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_blank()) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=14),
+          axis.title.y = element_text(angle = 0,  size=12, colour="white"))+
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=14, angle=0, face="bold"),
+          strip.text.y = element_text(size=14, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable")  )+#
+        facetted_pos_scales(
+    y = rep(list(
+      scale_y_continuous(breaks  = c(  500,  1000)),     # pcaH
+      scale_y_continuous(breaks  = c(  500,  1000)),     # pcaH
+      scale_y_continuous(breaks  = c(  500,  1000))     # pcaH
+    ))
+  )
+ Carbon_plot
+
+   # ggsave(figure_file("Carbon_progertion.png"),
+   #         width = 20 , # anchura
+   #         height = 13, # altura
+   #         units = "cm",
+   #         limitsize = FALSE,
+   #         dpi = 600)
+
+
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( gene_protein %in% c("pit",
+                              "pstB",
+                              "pstS")) %>%
+  mutate(day = gsub("D", "", day))
+
+
+Killer_plot_1$subcategory <- factor(Killer_plot_1$subcategory,
+                                              levels = c("Phosphate metabolism"),
+                                    labels = c(" Phosphate \n  metabolism  "))
+# Killer_plot_1$subcategory <- factor(Killer_plot_1$subcategory,
+#                                               levels = c("TCA cycle"),labels = c("TCA\ncycle"))
+
+  Phosphorus_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Phosphorus metabolism")+
+    labs(x="", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_blank()) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=14),
+          axis.title.y = element_text(angle = 0,  size=11, colour="white"))+ #########
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_blank(),
+          strip.text.y = element_text(size=14, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable")  )+ #
+          facetted_pos_scales(
+    y = rep(list(
+      scale_y_continuous(breaks  = c(  2000,  4000)),     # pcaH
+      scale_y_continuous(breaks  = c( 1000, 2000)),     # pcaH
+      scale_y_continuous(breaks  = c(400,  900))     # pcaH
+    ))
+  )
+
+
+Phosphorus_plot
+
+   # ggsave(figure_file("Vit_progertion.png"),
+   #         width = 20 , # anchura
+   #         height = 6, # altura
+   #         units = "cm",
+   #         limitsize = FALSE,
+   #         dpi = 600)
+   #
+
+
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( gene_protein %in% c("cobG")) %>%
+  mutate(subcategory = gsub("B12", " Vitamin B12 ", subcategory)) %>%
+  mutate(day = gsub("D", "", day))
+
+vitamins_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Vitamins")+
+    labs(x="", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x =  element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=14)) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=14),
+          axis.title.y = element_text(angle = 0,  size=14, colour="white"))+ #########
+       theme(strip.text = element_text(size = 14)) +
+    theme(strip.text.x = element_blank(),
+          strip.text.y = element_text(size=14, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable")  )+ #
+          facetted_pos_scales(
+    y = rep(list(
+      scale_y_continuous(breaks  = c( 50, 100))     # pcaH
+    ))
+  ) #
+vitamins_plot
+
+   # ggsave(figure_file("Vit_progertion.png"),
+   #         width = 20 , # anchura
+   #         height = 6, # altura
+   #         units = "cm",
+   #         limitsize = FALSE,
+   #         dpi = 600)
+```
+
+
+```{r PLOTTING Figure 4_2, with all Categories, fig.height=18, fig.width=25}
+# Guarda la imagen
+png(figure_file("Vit_progertion.png"),
+    width = 20, height = 30, units = 'cm', res=600 )
+
+
+
+# Combina el título, las gráficas y el texto final
+plot_final <- plot_grid(Carbon_plot, Phosphorus_plot, vitamins_plot, ncol = 1,  rel_widths = c(1, 1, 0.5),
+                        rel_heights = c(1.1, 1, 0.5)) # Ajusta rel_heights según sea necesario
+
+# Imprime el gráfico final
+print(plot_final)
+
+# Cierra el dispositivo de gráficos
+dev.off()
+plot_final
+
+# Guarda la imagen
+png(figure_file("2_progertion.png"),
+    width = 20, height = 30, units = 'cm', res=600 )
+
+
+
+# Combina el título, las gráficas y el texto final
+plot_final <- plot_grid(N_plot, S_plot, Fe_plot, ncol = 1,
+                        rel_heights = c(1, 0.30, 0.5)) # Ajusta rel_heights según sea necesario
+
+# Imprime el gráfico final
+print(plot_final)
+
+# Cierra el dispositivo de gráficos
+dev.off()
+plot_final
+```
+
+
+
+
+
+
+
+
+```{r PLOTTING Figure 4_3, with all Categories, fig.height=18, fig.width=25}
+Killer_plot_1 <- Killer_plot %>%
+  filter( gene_protein %in% c("glnA",
+                              "glnB",
+                              "amt1",
+                              "amt2")) %>%
+  mutate(day = gsub("D", "", day))
+
+
+Killer_plot_1$subcategory <- factor(Killer_plot_1$subcategory,
+                                              levels = c("Amino acid metabolism",
+                                                         "Ammonium uptake"),
+                                    labels = c("Amino\nacid\n metabolism",
+                                               "Ammonium\nuptake"))
+Killer_plot_1$gene_protein <- factor(Killer_plot_1$gene_protein,
+                                              levels = c("glnA","glnB","amt1","amt2"),
+                                     labels = c("  glnA  ",
+                                                "  glnB  ",
+                                                "  amt1  ",
+                                                "  amt2  "))
+
+  N_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Nitrogen metabolism")+
+    labs(x="", y="TPM ", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_blank()) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=14),
+          axis.title.y = element_text(angle = 0,  size=16, colour="white"))+ #########
+    theme(strip.text = element_text(size = 14)) +
+    theme(strip.text.x = element_text(size=14, angle=0, face="bold"),
+          strip.text.y = element_text(size=14, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable")  )+ #
+          facetted_pos_scales(
+    y = rep(list(
+      scale_y_continuous(breaks  = c( 1000,  2000)),     # pcaH
+      scale_y_continuous(breaks  = c( 2000, 5000)),     # pcaH
+      scale_y_continuous(breaks  = c( 2000, 4000)),     # pcaH
+      scale_y_continuous(breaks  = c( 1000, 3000))     # pcaH
+    ))
+  )
+
+N_plot
+
+   # ggsave(figure_file("Nitrogen_progertion.png"),
+   #         width = 20 , # anchura
+   #         height = 17, # altura
+   #         units = "cm",
+   #         limitsize = FALSE,
+   #         dpi = 600)
+
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( gene_protein %in% c("dmdA1")) %>%
+  mutate(day = gsub("D", "", day))
+
+
+Killer_plot_1$subcategory <- factor(Killer_plot_1$subcategory,
+                                              levels = c("DMSP assimilation"),
+                                    labels = c("DMSP\nassimilation"))
+# # Killer_plot_1$subcategory <- factor(Killer_plot_1$subcategory,
+# #                                               levels = c("TCA cycle"),labels = c("TCA\ncycle"))
+
+  S_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Sulfur metabolism")+
+    labs(x="", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_blank()) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=14),
+          axis.title.y = element_text(angle = 0,  size=14, colour="white"))+ #########
+    theme(strip.text = element_text(size = 14)) +
+    theme(strip.text.x = element_blank(),
+          strip.text.y = element_text(size=14, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable")  )+ #
+            facetted_pos_scales(
+    y = rep(list(
+      scale_y_continuous(breaks  = c( 10000, 30000))     # pcaH
+    ))
+  )
+
+
+   # ggsave(figure_file("DMSP_progertion.png"),
+   #         width = 20.5 , # anchura
+   #         height = 6, # altura
+   #         units = "cm",
+   #         limitsize = FALSE,
+   #         dpi = 600)
+
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( gene_protein %in% c("fbpA",
+                              "ftnA")) %>%
+    mutate(subcategory = gsub("Ferric uptake", "Ferricuptake ", subcategory)) %>%
+  mutate(day = gsub("D", "", day))
+
+
+Killer_plot_1$subcategory <- factor(Killer_plot_1$subcategory,
+                                              levels = c("Iron storage",
+                                                         "Ferricuptake"),
+                                    labels = c("    Iron    \n    storage     ",
+                                               "    Ferric    \n     uptake     "))
+Killer_plot_1$gene_protein <- factor(Killer_plot_1$gene_protein,
+                                              levels = c("fbpA","ftnA"),
+                                     labels = c("  fbpA  ",
+                                                "  ftnA  "))
+
+  Fe_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("Iron metabolism")+
+    labs(x="", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x =  element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=14)) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=14),
+          axis.title.y = element_text(angle = 0,  size=14, colour="white"))+ #########
+    theme(strip.text = element_text(size = 14)) +
+    theme(strip.text.x = element_blank(),
+          strip.text.y = element_text(size=14, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable")  )+ #
+          facetted_pos_scales(
+    y = rep(list(
+      scale_y_continuous(breaks  = c( 5000, 15000)),     # pcaH
+      scale_y_continuous(breaks  = c( 1000, 5000))     # pcaH
+    ))
+  ) #
+
+
+   # ggsave(figure_file("Fe_progertion.png"),
+   #         width = 20 , # anchura
+   #         height = 10, # altura
+   #         units = "cm",
+   #         limitsize = FALSE,
+   #         dpi = 600)
+```
+
+
+```{r PLOTTING Figure 4_4, with all Categories, fig.height=18, fig.width=25}
+# Guarda la imagen
+png(figure_file("2_progertion.png"),
+    width = 20, height = 25, units = 'cm', res=600 )
+
+
+
+# Combina el título, las gráficas y el texto final
+plot_final <- plot_grid(N_plot, S_plot, Fe_plot, ncol = 1,
+                        rel_heights = c(1, 0.30, 0.5)) # Ajusta rel_heights según sea necesario
+
+# Imprime el gráfico final
+print(plot_final)
+
+# Cierra el dispositivo de gráficos
+dev.off()
+plot_final
+```
+
+
+```{r}
+Killer_plot_1 <- Killer_plot %>%
+  filter( gene_protein %in% c("icd",
+                              "sdhA",
+                              "zwf",
+                              "pit",
+                              "pstB",
+                              "pstS",
+                              "cobG",
+                              "dmdA1",
+                              "glnA",
+                              "glnB",
+                              "amt1",
+                              "amt2",
+                              "fbpA",
+                              "ftnA")) %>%
+  mutate(Season = gsub("SPG", "ENV2", Season)) %>%
+  mutate(Season = gsub("WIN", "ENV1", Season)) %>%
+  mutate(Season = gsub("SUM", "ENV3", Season))  %>%
+  mutate(Station = gsub("Coast", "S3", Station))  %>%
+  mutate(Station = gsub("Offshore", "S6", Station))  %>%
+  unite(sample, Season, day, Station, sep="_", remove=F) %>%
+  group_by(sample, gene_protein) %>%
+  dplyr::summarize(tpm=sum(tpm)) %>%
+    separate(sample, c("cruise", "day", "station"), sep="_", remove=F) %>%
+  spread(gene_protein, tpm)
+
+
+# write.csv(Killer_plot_1, calculation_file("Killer_plot_1.csv"))
+```
+
+
+
+
+```{r PLOTTING Figure 4_5, with all Categories, fig.height=18, fig.width=25}
+library(scales)
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( category == "Carbon metabolism")%>%
+  mutate(day = gsub("D", "", day))
+
+
+
+
+  Categories_sumTPM_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("")+
+    labs(x="Time (days)", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 11, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=10, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=10, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable") ,
+   labeller = label_wrap_gen(12) ) +
+      facetted_pos_scales(
+    y = rep(list(
+      scale_y_continuous(breaks  = c( 4, 8)),     # pcaH
+      scale_y_continuous(breaks  = c( 250, 500)), # foiD
+      scale_y_continuous(breaks  = c( 60, 120)),   # mthfr
+      scale_y_continuous(breaks  = c( 5, 10)),    # fbp
+      scale_y_continuous(breaks  = c( 300, 600)),    # fpr
+      scale_y_continuous(breaks  = c( 750, 1500)),    # gap2
+      scale_y_continuous(breaks  = c( 300, 600)),    # glc
+      scale_y_continuous(breaks  = c( 150, 300)),    # gh1
+      scale_y_continuous(breaks  = c( 60, 120)),    # glgC
+      scale_y_continuous(breaks  = c( 20, 40)),    # glpA
+      scale_y_continuous(breaks  = c( 400, 800)),    # glpC
+      scale_y_continuous(breaks  = c( 75, 150)),    # glpQ
+      scale_y_continuous(breaks  = c( 1, 2)),    # glpT
+      scale_y_continuous(breaks  = c( 750, 1500)),    # IolA
+      scale_y_continuous(breaks  = c( 300, 600)),    # pgi
+      scale_y_continuous(breaks  = c( 30, 60)),    # ppk
+      scale_y_continuous(breaks  = c( 300, 600)),    # pyk
+      scale_y_continuous(breaks  = c( 500, 1000)),    # zwf
+      scale_y_continuous(breaks  = c( 75, 150)),    # nd
+      scale_y_continuous(breaks  = c( 10, 20)),    # phaZ
+      scale_y_continuous(breaks  = c( 100, 200)),    # fae
+      scale_y_continuous(breaks  = c( 7, 14)),    # ftf
+      scale_y_continuous(breaks  = c( 3, 6)),    # ftr
+      scale_y_continuous(breaks  = c( 8, 16)),    # mch
+      scale_y_continuous(breaks  = c( 8, 16)),    # mtdB
+      scale_y_continuous(breaks  = c( 250, 500)), # ppC
+      scale_y_continuous(breaks  = c( 60, 120)),    # aspA
+      scale_y_continuous(breaks  = c( 500, 1000)),    # icd
+      scale_y_continuous(breaks  = c( 125, 250)),    # idh
+      scale_y_continuous(breaks  = c( 600, 1200)),    # sdhA
+      scale_y_continuous(breaks  = c( 300, 600))
+    ))
+  )
+ Categories_sumTPM_plot
+
+   ggsave(figure_file("Carbon_metabolism_progertion.png"),
+           width = 15 , # anchura
+           height = 40, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+
+```
+
+```{r PLOTTING Figure 4_6, with all Categories, fig.height=18, fig.width=25}
+library(scales)
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( category == "Nitrogen metabolism")%>%
+  mutate(day = gsub("D", "", day))
+
+
+
+
+  Categories_sumTPM_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("")+
+    labs(x="Time (days)", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 11, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=10, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=10, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable") ,
+   labeller = label_wrap_gen(12) ) +
+    facetted_pos_scales(
+  y = rep(list(
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 300, 600)),    # fpr
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 1000, 2000)),     # pcaH
+    scale_y_continuous(breaks  = c( 3000, 6000)),     # pcaH
+    scale_y_continuous(breaks  = c( 40, 80)),   # mthfr
+    scale_y_continuous(breaks  = c( 25, 50)),   # mthfr
+    scale_y_continuous(breaks  = c( 1500, 3000)),     # pcaH
+    scale_y_continuous(breaks  = c( 500, 1000)),     # pcaH
+    scale_y_continuous(breaks  = c( 15, 30)),   # mthfr
+    scale_y_continuous(breaks  = c( 2500, 5000)),   # mthfr
+    scale_y_continuous(breaks  = c( 1500, 3000)),     # pcaH
+    scale_y_continuous(breaks  = c( 8, 16)),   # mthfr
+    scale_y_continuous(breaks  = c( 10, 20)),     # pcaH
+    scale_y_continuous(breaks  = c( 40, 80)),   # mthfr
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 40, 80)),   # mthfr
+    scale_y_continuous(breaks  = c( 250, 500)),   # mthfr
+    scale_y_continuous(breaks  = c( 200, 400)),   # mthfr
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 5, 10)),     # pcaH
+    scale_y_continuous(breaks  = c( 30, 60)),     # pcaH
+    scale_y_continuous(breaks  = c( 1, 2)),     # pcaH
+    scale_y_continuous(breaks  = c( 25, 50)),   # mthfr
+    scale_y_continuous(breaks  = c( 1, 2)),     # pcaH
+    scale_y_continuous(breaks  = c( 500, 1000)),     # pcaH
+    scale_y_continuous(breaks  = c( 500, 1000)),     # pcaH
+    scale_y_continuous(breaks  = c( 100, 200))
+  ))
+  )
+ Categories_sumTPM_plot
+
+   ggsave(figure_file("Nitrogen_metabolism_progertion.png"),
+           width = 15 , # anchura
+           height = 40, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+
+```
+
+```{r PLOTTING Figure 4_7, with all Categories, fig.height=18, fig.width=25}
+library(scales)
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( category == "Phosphorus metabolism")%>%
+  mutate(day = gsub("D", "", day))
+
+
+
+
+  Categories_sumTPM_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("")+
+    labs(x="Time (days)", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 11, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=10, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=10, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable") ,
+   labeller = label_wrap_gen(12) ) +
+    facetted_pos_scales(
+  y = rep(list(
+    scale_y_continuous(breaks  = c( 30, 60)),     # pcaH
+    scale_y_continuous(breaks  = c( 60, 120)),   # mthfr
+    scale_y_continuous(breaks  = c( 300, 600)),    # fpr
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 150, 300)),     # pcaH
+    scale_y_continuous(breaks  = c( 2000, 4000)),     # pcaH
+    scale_y_continuous(breaks  = c( 75, 150)),     # pcaH
+    scale_y_continuous(breaks  = c( 1000, 2000)),     # pcaH
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 500, 1000)),     # pcaH
+    scale_y_continuous(breaks  = c( 5, 10)),     # pcaH
+    scale_y_continuous(breaks  = c( 45, 90)),     # pcaH
+    scale_y_continuous(breaks  = c( 1, 2)),     # pcaH
+    scale_y_continuous(breaks  = c( 2, 4)),     # pcaH
+    scale_y_continuous(breaks  = c( 1, 2)),     # pcaH
+    scale_y_continuous(breaks  = c( 5, 10)),     # pcaH
+    scale_y_continuous(breaks  = c( 50, 100))
+  ))
+  )
+ Categories_sumTPM_plot
+
+   ggsave(figure_file("Phosphorus_metabolism_progertion.png"),
+           width = 15 , # anchura
+           height = 40, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+
+```
+```{r PLOTTING Figure 4_8, with all Categories, fig.height=18, fig.width=25}
+library(scales)
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( category == "Sulfur metabolism")%>%
+  mutate(day = gsub("D", "", day))
+
+
+
+
+
+
+  Categories_sumTPM_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("")+
+    labs(x="Time (days)", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 11, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=10, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=10, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable") ,
+   labeller = label_wrap_gen(12) ) +
+  facetted_pos_scales(
+  y = rep(list(
+    scale_y_continuous(breaks  = c( 15, 30)),     # pcaH
+    scale_y_continuous(breaks  = c( 15000, 30000)),     # pcaH
+    scale_y_continuous(breaks  = c( 15000, 30000)),     # pcaH
+    scale_y_continuous(breaks  = c( 75, 150)),     # pcaH
+    scale_y_continuous(breaks  = c( 125, 250)),     # pcaH
+    scale_y_continuous(breaks  = c( 50, 100)),     # pcaH
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 1000, 2000)),     # pcaH
+    scale_y_continuous(breaks  = c( 500, 1000)),     # pcaH
+    scale_y_continuous(breaks  = c( 750, 1500)),     # pcaH
+    scale_y_continuous(breaks  = c( 750, 1500)),     # pcaH
+    scale_y_continuous(breaks  = c( 75, 150)),     # pcaH
+    scale_y_continuous(breaks  = c( 75, 150)),     # pcaH
+    scale_y_continuous(breaks  = c( 45, 90)),     # pcaH
+    scale_y_continuous(breaks  = c( 30, 60))
+  ))
+  )
+ Categories_sumTPM_plot
+
+   ggsave(figure_file("Sulfur_metabolism_progertion.png"),
+           width = 15 , # anchura
+           height = 40, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+
+```
+
+
+```{r PLOTTING Figure 4_9, with all Categories, fig.height=18, fig.width=25}
+library(scales)
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( category == "Iron metabolism")%>%
+  mutate(day = gsub("D", "", day))
+
+
+
+
+  Categories_sumTPM_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("")+
+    labs(x="Time (days)", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 11, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=10, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=10, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable") ,
+   labeller = label_wrap_gen(12) ) +
+  facetted_pos_scales(
+  y = rep(list(
+    scale_y_continuous(breaks  = c( 2000, 4000)),     # pcaH
+    scale_y_continuous(breaks  = c( 2000, 4000)),     # pcaH
+    scale_y_continuous(breaks  = c( 15, 25)),     # pcaH
+    scale_y_continuous(breaks  = c( 10, 20)),     # pcaH
+    scale_y_continuous(breaks  = c( 20, 40)),     # pcaH
+    scale_y_continuous(breaks  = c( 40, 80)),     # pcaH
+    scale_y_continuous(breaks  = c( 20, 40)),     # pcaH
+    scale_y_continuous(breaks  = c( 150, 300)),     # pcaH
+    scale_y_continuous(breaks  = c( 150, 300)),     # pcaH
+    scale_y_continuous(breaks  = c( 7500, 15000)),     # pcaH
+    scale_y_continuous(breaks  = c( 300, 600)),     # pcaH
+    scale_y_continuous(breaks  = c( 600, 1200)),     # pcaH
+    scale_y_continuous(breaks  = c( 30, 60)),     # pcaH
+    scale_y_continuous(breaks  = c( 1500, 3000)),     # pcaH
+    scale_y_continuous(breaks  = c( 500, 1000)),     # pcaH
+    scale_y_continuous(breaks  = c( 300, 750)),     # pcaH
+    scale_y_continuous(breaks  = c( 75, 125)),     # pcaH
+    scale_y_continuous(breaks  = c( 200, 400))
+  ))
+  )
+ Categories_sumTPM_plot
+
+   ggsave(figure_file("Iron_metabolism_progertion.png"),
+           width = 15 , # anchura
+           height = 40, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+
+```
+
+
+
+```{r PLOTTING Figure 4_10, with all Categories, fig.height=18, fig.width=25}
+library(scales)
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( category == "Vitamins")%>%
+  mutate(subcategory = gsub("B1", "Vitamin B1 ", subcategory)) %>%
+  mutate(subcategory = gsub("B12", "Vitamin B12 ", subcategory)) %>%
+  mutate(day = gsub("D", "", day))
+
+
+
+
+  Categories_sumTPM_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("")+
+    labs(x="Time (days)", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 11, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=10, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=10, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable") ,
+   labeller = label_wrap_gen(12) )
+
+ Categories_sumTPM_plot
+
+   ggsave(figure_file("Vit_metabolism_progertion.png"),
+           width = 15 , # anchura
+           height = 40, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+
+```
+```{r PLOTTING Figure 4_11, with all Categories, fig.height=18, fig.width=25}
+library(scales)
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( category == "Response to stimuli")%>%
+  mutate(day = gsub("D", "", day))
+
+
+
+
+  Categories_sumTPM_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("")+
+    labs(x="Time (days)", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 11, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=10, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=10, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable") ,
+   labeller = label_wrap_gen(12) ) +
+  facetted_pos_scales(
+  y = rep(list(
+    scale_y_continuous(breaks  = c( 15, 30)),     # pcaH
+    scale_y_continuous(breaks  = c( 5, 10)),     # pcaH
+    scale_y_continuous(breaks  = c( 5, 15)),     # pcaH
+    scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+    scale_y_continuous(breaks  = c( 125, 250)),     # pcaH
+    scale_y_continuous(breaks  = c( 3, 6)),     # pcaH
+    scale_y_continuous(breaks  = c( 150, 75)),     # pcaH
+    scale_y_continuous(breaks  = c( 1000, 2000)),     # pcaH
+    scale_y_continuous(breaks  = c( 50, 100)),     # pcaH
+    scale_y_continuous(breaks  = c( 75, 150)),     # pcaH
+    scale_y_continuous(breaks  = c( 20, 40)),     # pcaH
+    scale_y_continuous(breaks  = c( 40, 80)),     # pcaH
+    scale_y_continuous(breaks  = c( 40, 80)),     # pcaH
+    scale_y_continuous(breaks  = c( 10, 20)),     # pcaH
+    scale_y_continuous(breaks  = c( 50, 100)),     # pcaH
+    scale_y_continuous(breaks  = c( 10, 20)),     # pcaH
+    scale_y_continuous(breaks  = c( 20, 40)),     # pcaH
+    scale_y_continuous(breaks  = c( 100, 200)),
+    scale_y_continuous(breaks  = c( 5, 10)),
+    scale_y_continuous(breaks  = c( 100, 200)),
+    scale_y_continuous(breaks  = c( 0, 1))
+  ))
+  )
+ Categories_sumTPM_plot
+
+   ggsave(figure_file("Response_stimuli_progertion.png"),
+           width = 15 , # anchura
+           height = 40, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+
+```
+
+```{r PLOTTING Figure 4_12, with all Categories, fig.height=18, fig.width=25}
+library(scales)
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( category == "Response to stress")%>%
+  mutate(day = gsub("D", "", day))
+
+
+
+
+  Categories_sumTPM_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("")+
+    labs(x="Time (days)", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 11, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=10, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=10, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable") ,
+   labeller = label_wrap_gen(12) ) #+
+  # facetted_pos_scales(
+  # y = rep(list(
+  #   scale_y_continuous(breaks  = c( 15, 30)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 5, 10)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 5, 15)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 125, 250)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 3, 6)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 150, 75)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 1000, 2000)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 50, 100)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 75, 150)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 20, 40)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 40, 80)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 40, 80)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 10, 20)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 50, 100)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 10, 20)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 20, 40)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 100, 200)),
+  #   scale_y_continuous(breaks  = c( 5, 10)),
+  #   scale_y_continuous(breaks  = c( 100, 200)),
+  #   scale_y_continuous(breaks  = c( 0, 1))
+  # ))
+  # )
+ Categories_sumTPM_plot
+
+   ggsave(figure_file("Response_stress_progertion.png"),
+           width = 16 , # anchura
+           height = 40, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+
+```
+```{r PLOTTING Figure 4_13, with all Categories, fig.height=18, fig.width=25}
+library(scales)
+
+Killer_plot_1 <- Killer_plot %>%
+  filter( category == "Phototrophy")%>%
+  mutate(day = gsub("D", "", day))
+
+
+
+
+  Categories_sumTPM_plot <- ggplot(Killer_plot_1, aes(x=day, y=tpm, fill=Our_Taxonomy)) +
+    geom_bar(stat = "identity") + #, color ="black"
+    # geom_vline(xintercept = (3:3)+0.5) +
+    ggtitle ("")+
+    labs(x="Time (days)", y="TPM", fill="", col="") +
+    theme_bw(base_size = 11) +
+    theme(plot.title = element_text(size = 11, face = "bold", hjust = 0.5))+
+    theme(plot.subtitle  = element_text(size = 11, face = "bold", hjust = 0)) +
+    theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=10, face = "bold")) +
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size=10, face = "bold")) +
+    theme(strip.text = element_text(size = 11)) +
+    theme(strip.text.x = element_text(size=11, angle=0, face="bold"),
+          strip.text.y = element_text(size=11, angle=0, face="bold"),
+          strip.background = element_rect(colour="black", fill="white")) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = my.colors_Prokaryotes) +
+    facet_nested(subcategory+gene_protein ~ Station+Season, scales = "free_y", strip = strip_nested(size = "variable") ,
+   labeller = label_wrap_gen(12) ) #+
+  # facetted_pos_scales(
+  # y = rep(list(
+  #   scale_y_continuous(breaks  = c( 15, 30)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 5, 10)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 5, 15)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 100, 200)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 125, 250)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 3, 6)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 150, 75)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 1000, 2000)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 50, 100)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 75, 150)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 20, 40)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 40, 80)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 40, 80)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 10, 20)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 50, 100)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 10, 20)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 20, 40)),     # pcaH
+  #   scale_y_continuous(breaks  = c( 100, 200)),
+  #   scale_y_continuous(breaks  = c( 5, 10)),
+  #   scale_y_continuous(breaks  = c( 100, 200)),
+  #   scale_y_continuous(breaks  = c( 0, 1))
+  # ))
+  # )
+ Categories_sumTPM_plot
+
+   ggsave(figure_file("Phototrophy_progertion.png"),
+           width = 16 , # anchura
+           height = 40, # altura
+           units = "cm",
+           limitsize = FALSE,
+           dpi = 600)
+
+```
+
+
+
+```{r include=FALSE}
+png(figure_file("Bubbles_C_N.png"),width = 70, height = 40, units = 'cm', res=300 )
+library(gridExtra)
+# + theme(axis.text.x = element_blank(), axis.title.x = element_blank()),
+plot_grid(Carbon_Gene_abundance_plot,
+          Nitrogen_Gene_abundance_plot,
+          Phosphorus_Gene_abundance_plot,
+          align = "auto", ncol = 3)
+print(plot_grid)
+dev.off()
+
+```

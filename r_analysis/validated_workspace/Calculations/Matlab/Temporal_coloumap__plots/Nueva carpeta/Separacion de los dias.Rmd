@@ -1,0 +1,690 @@
+---
+title: "Untitled"
+author: "Erick Delgadillo"
+date: "10/9/2021"
+output: html_document
+---
+```{r envision_paths, include=FALSE}
+.envision_input <- tryCatch(knitr::current_input(dir = TRUE), error = function(e) "")
+.envision_candidates <- unique(c(
+  Sys.getenv("ENVISION_PROJECT_ROOT", unset = ""),
+  if (length(.envision_input) && nzchar(.envision_input)) dirname(.envision_input) else character(),
+  getwd()
+))
+.envision_candidates <- .envision_candidates[nzchar(.envision_candidates) & dir.exists(.envision_candidates)]
+.envision_config <- ""
+.envision_cursor <- ""
+for (.envision_start in .envision_candidates) {
+  .envision_probe <- normalizePath(.envision_start, winslash = "/", mustWork = TRUE)
+  repeat {
+    .envision_candidate <- file.path(.envision_probe, "R", "envision_paths.R")
+    if (file.exists(.envision_candidate)) {
+      .envision_cursor <- .envision_probe
+      .envision_config <- .envision_candidate
+      break
+    }
+    .envision_parent <- dirname(.envision_probe)
+    if (identical(.envision_parent, .envision_probe)) break
+    .envision_probe <- .envision_parent
+  }
+  if (nzchar(.envision_config)) break
+}
+if (!nzchar(.envision_config)) stop("No se encontró R/envision_paths.R")
+options(envision.project_root = .envision_cursor)
+source(.envision_config)
+```
+
+```{r setup, include=FALSE}
+require(RColorBrewer); sprintf("RColorBrewer: %s", packageVersion("RColorBrewer"))
+require(devtools); sprintf("devtools: %s", packageVersion("devtools"))
+require(circlize); sprintf("circlize: %s", packageVersion("circlize"))
+require(data.table); sprintf("data.table: %s", packageVersion("data.table"))
+require(limma); sprintf("limma: %s", packageVersion("limma"))
+require(edgeR); sprintf("edgeR: %s", packageVersion("edgeR"))
+require(gapminder); sprintf("gapminder: %s", packageVersion("gapminder"))
+require(gg.gap); sprintf("gg.gap: %s", packageVersion("gg.gap"))
+require(feather); sprintf("feather: %s", packageVersion("feather"))
+require(cowplot); sprintf("cowplot: %s", packageVersion("cowplot"))
+require(devtools); sprintf("devtools: %s", packageVersion("devtools"))
+require(data.table); sprintf("data.table: %s", packageVersion("data.table"))
+require(purrr); sprintf("purrr: %s", packageVersion("purrr"))
+require(readr); sprintf("radr: %s", packageVersion("readr"))
+require(kfigr); sprintf("kfigr: %s", packageVersion("kfigr"))
+require(knitr); sprintf("knitr: %s", packageVersion("knitr"))
+require(tidyr); sprintf("tidyr: %s", packageVersion("tidyr"))
+require(dplyr); sprintf("dplyr: %s", packageVersion("dplyr"))
+require(dtplyr); sprintf("dtplyr: %s", packageVersion("dtplyr"))
+require(viridis); sprintf("viridis: %s", packageVersion("viridis"))
+require(tibble); sprintf("tibble: %s", packageVersion("tibble"))
+require(gridExtra); sprintf("gridExtra: %s", packageVersion("gridExtra"))
+require(stringr); sprintf("stringr: %s", packageVersion("stringr"))
+require(webshot); sprintf("webshot: %s", packageVersion("webshot"))
+require(vegan); sprintf("vegan: %s", packageVersion("vegan"))
+require(plotly); sprintf("plotly: %s", packageVersion("plotly"))
+require(ggpmisc); sprintf("ggpmisc: %s", packageVersion("ggpmisc"))
+require(ggplot2); sprintf("ggplot2: %s", packageVersion("ggplot2"))
+require(ggbiplot); sprintf("ggbiplot: %s", packageVersion("ggbiplot"))
+require(ComplexHeatmap); sprintf("ComplexHeatmap: %s", packageVersion("ComplexHeatmap"))
+require(Hmisc); sprintf("Hmisc: %s", packageVersion("Hmisc"))
+# require(CoDaSeq); sprintf("CoDaSeq: %s", packageVersion("CoDaSeq"))
+require(ggord); sprintf("ggord: %s", packageVersion("ggord"))
+require(gg.gap); sprintf("gg.gap: %s", packageVersion("gg.gap"))
+# RAM no se utiliza en este cuaderno y ya no está disponible en la instalación actual.
+require(ggthemes); sprintf("ggthemes: %s", packageVersion("ggthemes"))
+
+
+set.seed(5555) # 5tory-5ecret-5olar-5ystem
+```
+
+
+```{r}
+# lat_and_long <- read.csv("lat_and_long.csv", sep = ";")
+
+All_Metadata <- read.csv(project_file("Calculations", "Matlab", "Temporal_coloumap__plots", "Nueva carpeta", "All_Metadata.csv"), sep = ";") %>%
+  filter(Prof =="5") %>%
+    filter(St !="4") %>%
+    filter(St !="5")
+```
+
+```{r}
+All_Metadata$mont  <- factor(All_Metadata$mont, levels = c("Winter", "Spring","Summer"))
+```
+
+
+```{r}
+# Barplots by day
+NO2_plot <- ggplot(All_Metadata, aes(x=day, y=no2, fill = )) +
+   theme_few(base_size = 10, base_family = "") +
+  theme(plot.subtitle  = element_text(size = 16, face = "bold", hjust = 0)) +
+   theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))+
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=8, face = "bold")) +
+   theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+  geom_bar(stat = "identity") +
+    labs(title = "NO2", tag = "")+
+  ylab("") +
+  xlab("Day") +
+facet_grid(St~mont) + # scales = "free_y"
+  theme(strip.text = element_text(size = 16))
+NO2_plot
+ggsave(figure_file("NO2_plot.pdf"))
+
+
+```
+```{r}
+# Barplots by day
+NO3_plot <- ggplot(All_Metadata, aes(x=day, y=no3, fill = )) +
+   theme_few(base_size = 10, base_family = "") +
+  theme(plot.subtitle  = element_text(size = 16, face = "bold", hjust = 0)) +
+   theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))+
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=8, face = "bold")) +
+   theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+  geom_bar(stat = "identity") +
+    labs(title = "NO3", tag = "")+
+  ylab("") +
+  xlab("Day") +
+facet_grid(St~mont) + # scales = "free_y"
+  theme(strip.text = element_text(size = 16))
+NO3_plot
+
+ggsave(figure_file("NO3_plot.pdf"))
+
+```
+```{r}
+# Barplots by day
+NH4_plot <- ggplot(All_Metadata, aes(x=day, y=nh4, fill = )) +
+   theme_few(base_size = 10, base_family = "") +
+  theme(plot.subtitle  = element_text(size = 16, face = "bold", hjust = 0)) +
+   theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))+
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=8, face = "bold")) +
+   theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+  geom_bar(stat = "identity") +
+    labs(title = "NH4", tag = "")+
+  ylab("") +
+  xlab("Day") +
+facet_grid(St~mont) + # scales = "free_y"
+  theme(strip.text = element_text(size = 16))
+NH4_plot
+ggsave(figure_file("NH4_plot.pdf"))
+
+
+```
+
+```{r}
+# Barplots by day
+TIN_plot <- ggplot(All_Metadata, aes(x=day, y=TIN)) +
+   theme_few(base_size = 10, base_family = "") +
+  theme(plot.subtitle  = element_text(size = 16, face = "bold", hjust = 0)) +
+   theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))+
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=8, face = "bold")) +
+   theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+  geom_bar(stat = "identity") +
+    labs(title = "TIN", tag = "")+
+  ylab("") +
+  xlab("Day") +
+facet_grid(St~mont) + # scales = "free_y"
+  theme(strip.text = element_text(size = 16))
+TIN_plot
+
+ggsave(figure_file("TIN_plot.pdf"))
+
+```
+```{r}
+# Barplots by day
+PO4_plot <- ggplot(All_Metadata, aes(x=day, y=po4)) +
+   theme_few(base_size = 10, base_family = "") +
+  theme(plot.subtitle  = element_text(size = 16, face = "bold", hjust = 0)) +
+   theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))+
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+   theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+  geom_bar(stat = "identity") +
+    labs(title = "PO4", tag = "")+
+  ylab("") +
+  xlab("Day") +
+facet_grid(St~mont) + # scales = "free_y"
+  theme(strip.text = element_text(size = 16))
+PO4_plot
+ggsave(figure_file("PO4_plot.pdf"))
+
+
+```
+```{r}
+# Barplots by day
+SiO2_plot <- ggplot(All_Metadata, aes(x=day, y=sio2)) +
+   theme_few(base_size = 10, base_family = "") +
+  theme(plot.subtitle  = element_text(size = 16, face = "bold", hjust = 0)) +
+   theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))+
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+   theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+  geom_bar(stat = "identity") +
+    labs(title = "SiO2", tag = "")+
+  ylab("") +
+  xlab("Day") +
+facet_grid(St~mont) + # scales = "free_y"
+  theme(strip.text = element_text(size = 16))
+SiO2_plot
+ggsave(figure_file("SiO2_plot.pdf"))
+
+```
+```{r}
+# Barplots by day
+Chla_3um_plot <- ggplot(All_Metadata, aes(x=day, y=Chla_3um)) +
+   theme_few(base_size = 10, base_family = "") +
+  theme(plot.subtitle  = element_text(size = 16, face = "bold", hjust = 0)) +
+   theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))+
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+   theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+  geom_bar(stat = "identity") +
+    labs(title = "Chla_3um", tag = "")+
+  ylab("") +
+  xlab("Day") +
+facet_grid(St~mont) + # scales = "free_y"
+  theme(strip.text = element_text(size = 16))
+Chla_3um_plot
+ggsave(figure_file("Chla_3um_plot.pdf"))
+
+```
+```{r}
+# Barplots by day
+Chla_2um_plot <- ggplot(All_Metadata, aes(x=day, y=Chla_2um)) +
+   theme_few(base_size = 10, base_family = "") +
+  theme(plot.subtitle  = element_text(size = 16, face = "bold", hjust = 0)) +
+   theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))+
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+   theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+  geom_bar(stat = "identity") +
+    labs(title = "Chla_2um", tag = "")+
+  ylab("") +
+  xlab("Day") +
+facet_grid(St~mont) + # scales = "free_y"
+  theme(strip.text = element_text(size = 16))
+Chla_2um_plot
+ggsave(figure_file("Chla_2um_plot.pdf"))
+
+```
+```{r}
+# Barplots by day
+Total_Chla_plot <- ggplot(All_Metadata, aes(x=day, y=Total_Chla)) +
+   theme_few(base_size = 10, base_family = "") +
+  theme(plot.subtitle  = element_text(size = 16, face = "bold", hjust = 0)) +
+   theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))+
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+   theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 0.5, size=12, face = "bold")) +
+  geom_bar(stat = "identity") +
+    labs(title = "Total_Chla", tag = "")+
+  ylab("") +
+  xlab("Day") +
+facet_grid(St~mont) + # scales = "free_y"
+  theme(strip.text = element_text(size = 16))
+Total_Chla_plot
+ggsave(figure_file("Total_Chla_plot.pdf"))
+
+```
+
+```{r}
+NO2 <- All_Metadata %>%
+  select(mont, St, no2)%>%
+  filter(no2 !="Na") # vamoa filtrar las casillas sin datos (NA)
+
+NO3 <- All_Metadata %>%
+  select(mont, St, no3)%>%
+  filter(no3 !="Na")
+
+NH4 <- All_Metadata %>%
+  select(mont, St, nh4)%>%
+  filter(nh4 !="Na")
+
+TIN <- All_Metadata %>%
+  select(mont, St, TIN)%>%
+  filter(TIN !="Na")
+
+PO4 <- All_Metadata %>%
+  select(mont, St, po4)%>%
+  filter(po4 !="Na")
+
+SiO2 <- All_Metadata %>%
+  select(mont, St, sio2)%>%
+  filter(sio2 !="Na")
+
+Chla_3um <- All_Metadata %>%
+  select(mont, St, Chla_3um)%>%
+  filter(Chla_3um !="Na")
+
+Chla_2um <- All_Metadata %>%
+  select(mont, St, Chla_2um)%>%
+  filter(Chla_2um !="Na")
+
+TChla <- All_Metadata %>%
+  select(mont, St, Total_Chla)%>%
+  filter(Total_Chla !="Na")
+
+```
+
+```{r}
+desvestp <-function(x){sqrt(sum((x - mean(x))^2)/(3))} # función desviación estándar poblacional
+errorstandar<-function(x){sqrt(desvestp(x)/sqrt(3))} # función error estándar
+
+```
+
+```{r}
+NO2_mean <- NO2 %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(no2), sdp=desvestp((no2)), errorestandar=errorstandar((no2)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+NO2_mean <- NO2 %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(no2), sdp=desvestp((no2)), errorestandar=errorstandar((no2)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+NO3_mean <- NO3 %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(no3), sdp=desvestp((no3)), errorestandar=errorstandar((no3)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+NH4_mean <- NH4 %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(nh4), sdp=desvestp((nh4)), errorestandar=errorstandar((nh4)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+TIN_mean <- TIN %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(TIN), sdp=desvestp((TIN)), errorestandar=errorstandar((TIN)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+PO4_mean <- PO4 %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(po4), sdp=desvestp((po4)), errorestandar=errorstandar((po4)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+SiO2_mean <- SiO2 %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(sio2), sdp=desvestp((sio2)), errorestandar=errorstandar((sio2)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+Chla_3um_mean <- Chla_3um %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(Chla_3um), sdp=desvestp((Chla_3um)), errorestandar=errorstandar((Chla_3um)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+Chla_2um_mean <- Chla_2um %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(Chla_2um), sdp=desvestp((Chla_2um)), errorestandar=errorstandar((Chla_2um)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+Total_Chla_mean <- TChla %>%
+ group_by(mont, St) %>%
+dplyr::summarise(mean=mean(Total_Chla), sdp=desvestp((Total_Chla)), errorestandar=errorstandar((Total_Chla)), n=n()) %>% #calculamos media y desviacion estandar
+ungroup()
+
+#  Hasta aqui todo bien
+#  esto pa que vergas es??
+# write.csv(wp1_epoc1_chla_mean_sdp_errorestandar, "wp1_epoc1_chla_mean_sdp_errorestandar.csv")
+
+
+```
+ "royalblue", # winter/coast
+                                "royalblue2",  # winter/offshore
+                                "orangered", # spring/coast
+                                "orangered2", # spring/offshore
+                                "seagreen1",  # summer/coast
+                                "seagreen2"))
+```{r}
+
+boxplot_Total_Chla <- ggplot(data = TChla,
+       aes(x=St, y=Total_Chla, fill=St)) +
+  stat_boxplot(geom ='errorbar', width = 0.6) +
+  geom_boxplot(width = 0.6)+
+  scale_fill_manual(values=c("seagreen1", "darkgreen")) +
+    labs(x = "",y = "")+
+    theme_few () +
+
+  ggtitle ("Total_Chla")+
+theme( legend.position = 'none')+
+  facet_wrap(~mont)
+
+boxplot_Total_Chla
+
+
+# ggsave(figure_file("TIN_boxplot.pdf"))
+#
+# ggsave(figure_file("TIN_boxplot.png"))
+
+```
+
+```{r}
+
+boxplot_TIN <- ggplot(data = TIN,
+       aes(x=St, y=TIN, fill=St)) +
+  stat_boxplot(geom ='errorbar', width = 0.6) +
+  geom_boxplot(width = 0.6)+
+  scale_fill_manual(values=c("seagreen1", "darkgreen")) +
+    labs(x = "",y = "")+
+    theme_few () +
+
+  ggtitle ("TIN")+
+theme( legend.position = 'none')+
+  facet_wrap(~mont)
+
+boxplot_TIN
+
+
+# ggsave(figure_file("TIN_boxplot.pdf"))
+#
+# ggsave(figure_file("TIN_boxplot.png"))
+
+```
+```{r}
+
+boxplot_PO4 <- ggplot(data = PO4,
+       aes(x=St, y=po4, fill=St)) +
+  stat_boxplot(geom ='errorbar', width = 0.6) +
+  geom_boxplot(width = 0.6)+
+  scale_fill_manual(values=c("seagreen1", "darkgreen")) +
+    labs(x = "",y = "")+
+    theme_few () +
+
+  ggtitle ("PO4")+
+theme( legend.position = 'none')+
+  facet_wrap(~mont)
+
+boxplot_PO4
+
+# ggsave(figure_file("TIN_boxplot.pdf"))
+#
+# ggsave(figure_file("TIN_boxplot.png"))
+
+```
+```{r}
+
+boxplot_SiO2 <- ggplot(data = SiO2,
+       aes(x=St, y=sio2, fill=St)) +
+  stat_boxplot(geom ='errorbar', width = 0.6) +
+  geom_boxplot(width = 0.6)+
+  scale_fill_manual(values=c("seagreen1", "darkgreen")) +
+    labs(x = "",y = "")+
+    theme_few () +
+
+  ggtitle ("SiO2")+
+theme( legend.position = 'none')+
+  facet_wrap(~mont)
+
+boxplot_SiO2
+
+# ggsave(figure_file("TIN_boxplot.pdf"))
+#
+# ggsave(figure_file("TIN_boxplot.png"))
+
+```
+```{r}
+pdf(figure_file("Boxplots.pdf"), 7, 9)
+library(gridExtra)
+# + theme(axis.text.x = element_blank(), axis.title.x = element_blank()),
+
+plot_grid(boxplot_Total_Chla, boxplot_TIN, boxplot_PO4, boxplot_SiO2,
+    ncol = 1, align = "auto")
+print(plot_grid)
+dev.off()
+```
+
+
+```{r}
+plot_Total_Chla <- ggplot(Total_Chla_mean, aes(x=St, y=mean)) +
+  geom_bar(stat="identity", color="black", position=position_dodge()) +
+  geom_errorbar(aes(ymin=mean - errorestandar, ymax=mean + errorestandar), width=0.1, position=position_dodge(0.9)) +
+  labs(x = "",y = "")+
+
+  theme_few () +
+  ggtitle ("Total_Chla")+
+  theme (plot.title = element_text(size=rel(1.25),
+                                   vjust=2,
+                                   face="plain",
+                                   color="black",
+                                   lineheight=1.5))+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.text = element_text(hjust = 0.5, size =10))+
+  theme(axis.title.x = element_text(size=10))+
+  theme(axis.title.y = element_text(size=10))+
+  theme(strip.text = element_text(size=10))+
+
+
+
+  scale_y_continuous(limits=c(0,10))+
+  facet_wrap(~mont)
+
+
+plot_Total_Chla <- ggplotly(plot_Total_Chla)
+
+plot_Total_Chla
+
+ggsave(figure_file("Total_Chla.pdf"))
+
+ggsave(figure_file("Total_Chla.jpg"))
+
+ggsave(figure_file("Total_Chla1.png"))
+
+
+plot_Total_Chla
+
+
+
+
+
+```
+TIN
+
+
+
+
+```{r}
+
+plot_TIN_mean <- ggplot(TIN_mean, aes(x=St, y=mean)) +
+  geom_bar(stat="identity", color="black", position=position_dodge()) +
+  geom_errorbar(aes(ymin=mean - errorestandar, ymax=mean + errorestandar), width=0.1, position=position_dodge(0.9)) +
+  labs(x = "",y = "")+
+
+  # scale_fill_manual(values = c("dodgerblue2",
+  #                               "darkslategray3",
+  #                               "plum4",
+  #                               "plum1",
+  #                               "tomato1",
+  #                               "lightsalmon1",
+  #                               "olivedrab",
+  #                               "olivedrab1"
+  #
+  #                               )) +
+
+
+
+  # theme_classic()+
+  theme_few () +
+  ggtitle ("TIN")+
+  theme (plot.title = element_text(size=rel(1.25),
+                                   vjust=2,
+                                   face="plain",
+                                   color="black",
+                                   lineheight=1.5))+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.text = element_text(hjust = 0.5, size =10))+
+  theme(axis.title.x = element_text(size=10))+
+  theme(axis.title.y = element_text(size=10))+
+  theme(strip.text = element_text(size=10))+
+
+
+
+  scale_y_continuous(limits=c(0,10))+
+  facet_wrap(~mont)
+
+
+plot_TIN_mean <- ggplotly(plot_TIN_mean)
+
+plot_TIN_mean
+
+ggsave(figure_file("TIN.pdf"))
+
+ggsave(figure_file("TIN.jpg"))
+
+ggsave(figure_file("TIN1.png"))
+
+
+plot_TIN_mean
+
+
+
+
+
+```
+
+
+```{r}
+plot_PO4_mean <- ggplot(PO4_mean, aes(x=St, y=mean)) +
+  geom_bar(stat="identity", color="black", position=position_dodge()) +
+  geom_errorbar(aes(ymin=mean - errorestandar, ymax=mean + errorestandar), width=0.1, position=position_dodge(0.9)) +
+  labs(x = "",y = "")+
+
+  # scale_fill_manual(values = c("dodgerblue2",
+  #                               "darkslategray3",
+  #                               "plum4",
+  #                               "plum1",
+  #                               "tomato1",
+  #                               "lightsalmon1",
+  #                               "olivedrab",
+  #                               "olivedrab1"
+  #
+  #                               )) +
+
+
+
+  # theme_classic()+
+  theme_few () +
+  ggtitle ("PO4")+
+  theme (plot.title = element_text(size=rel(1.25),
+                                   vjust=2,
+                                   face="plain",
+                                   color="black",
+                                   lineheight=1.5))+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.text = element_text(hjust = 0.5, size =10))+
+  theme(axis.title.x = element_text(size=10))+
+  theme(axis.title.y = element_text(size=10))+
+  theme(strip.text = element_text(size=10))+
+
+
+
+  scale_y_continuous(limits=c(0,4))+
+  facet_wrap(~mont)
+
+
+plot_PO4_mean <- ggplotly(plot_PO4_mean)
+
+plot_PO4_mean
+
+ggsave(figure_file("PO4.pdf"))
+
+ggsave(figure_file("PO4.jpg"))
+
+ggsave(figure_file("PO4.png"))
+
+
+plot_PO4_mean
+
+
+
+
+```
+SiO2_mean
+
+```{r}
+plot_SiO2_mean <- ggplot(SiO2_mean, aes(x=St, y=mean)) +
+  geom_bar(stat="identity", color="black", position=position_dodge()) +
+  geom_errorbar(aes(ymin=mean - errorestandar, ymax=mean + errorestandar), width=0.1, position=position_dodge(0.9)) +
+  labs(x = "",y = "")+
+
+  # scale_fill_manual(values = c("dodgerblue2",
+  #                               "darkslategray3",
+  #                               "plum4",
+  #                               "plum1",
+  #                               "tomato1",
+  #                               "lightsalmon1",
+  #                               "olivedrab",
+  #                               "olivedrab1"
+  #
+  #                               )) +
+
+
+
+  # theme_classic()+
+  theme_few () +
+  ggtitle ("PO4")+
+  theme (plot.title = element_text(size=rel(1.25),
+                                   vjust=2,
+                                   face="plain",
+                                   color="black",
+                                   lineheight=1.5))+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.text = element_text(hjust = 0.5, size =10))+
+  theme(axis.title.x = element_text(size=10))+
+  theme(axis.title.y = element_text(size=10))+
+  theme(strip.text = element_text(size=10))+
+
+
+
+  scale_y_continuous(limits=c(0,12))+
+  facet_wrap(~mont)
+
+
+plot_SiO2_mean <- ggplotly(plot_SiO2_mean)
+
+plot_SiO2_mean
+
+ggsave(figure_file("SiO2.pdf"))
+
+ggsave(figure_file("SiO2.jpg"))
+
+ggsave(figure_file("SiO2.png"))
+
+
+plot_SiO2_mean
+
+
+
+```
